@@ -17,7 +17,7 @@ RUN corepack enable
 COPY --from=deps /app/node_modules ./node_modules
 COPY package.json yarn.lock ./
 
-ENV DATABASE_URL=/data/database.db
+ENV DATABASE_URL=database.db
 
 # Build the SvelteKit app (adapter-node).
 COPY . .
@@ -38,7 +38,7 @@ ENV HOST=0.0.0.0
 ENV PORT=3000
 
 # Default SQLite path inside container. Override via environment if needed.
-ENV DATABASE_URL=/data/database.db
+ENV DATABASE_URL=database.db
 
 COPY --from=build /app/package.json ./
 COPY --from=build /app/yarn.lock ./
