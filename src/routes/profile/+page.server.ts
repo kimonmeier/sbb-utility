@@ -1,7 +1,7 @@
 import { auth } from '$lib/server/auth';
 import { db } from '$lib/server/db';
 import { tokens } from '$lib/server/db/schema';
-import { desc, eq } from 'drizzle-orm';
+import { and, desc, eq } from 'drizzle-orm';
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions, PageServerLoad } from './$types';
 
@@ -249,6 +249,45 @@ export const actions: Actions = {
 		return {
 			section: 'token',
 			success: 'Token stored successfully.'
+		};
+	},
+
+	deleteToken: async ({ request, locals }) => {
+		if (!locals.user) {
+			throw redirect(303, '/auth/login');
+		}
+
+		const formData = await request.formData();
+		const tokenId = String(formData.get('tokenId') ?? '').trim();
+
+		if (!tokenId) {
+			return fail(400, {
+				section: 'token',
+				error: 'Token id is missing.'
+			});
+		}
+
+		try {
+			const deletedRows = await db
+				.delete(tokens)
+				.where(and(eq(tokens.id, tokenId), eq(tokens.userId, locals.user.id)));
+
+			if (deletedRows.changes === 0) {
+				return fail(404, {
+					section: 'token',
+					error: 'Token not found.'
+				});
+			}
+		} catch (error) {
+			return fail(400, {
+				section: 'token',
+				error: getErrorMessage(error)
+			});
+		}
+
+		return {
+			section: 'token',
+			success: 'Token removed.'
 		};
 	}
 };

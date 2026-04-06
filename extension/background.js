@@ -1,8 +1,5 @@
 // Monitor both specific URLs
-const TARGET_URLS = [
-	'https://tip2.sbb.ch/rest/mitarbeiter/*',
-	'https://sopreweb-tourenplan-api.app.sbb.ch/mitarbeiter/check*'
-];
+const TARGET_URLS = ['https://sopreweb-tourenplan-api.app.sbb.ch/mitarbeiter/check*'];
 const RECEIVER_ENDPOINT = 'https://sbb.k-meier.ch/api/token';
 
 console.log(

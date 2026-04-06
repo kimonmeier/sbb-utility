@@ -242,11 +242,21 @@
 				{:else}
 					<ul class="space-y-2">
 						{#each data.tokens as savedToken (savedToken.id)}
-							<li class="rounded-lg border border-base-300 p-3 text-sm">
-								<p class="font-medium">{savedToken.token.slice(0, 12)}...</p>
-								<p class="opacity-70">
-									{m.profile_expires_at({ date: new Date(savedToken.expiresAt).toLocaleString() })}
-								</p>
+							<li
+								class="flex items-center justify-between gap-3 rounded-lg border border-base-300 p-3 text-sm"
+							>
+								<div>
+									<p class="font-medium">{savedToken.token.slice(0, 12)}...</p>
+									<p class="opacity-70">
+										{m.profile_expires_at({
+											date: new Date(savedToken.expiresAt).toLocaleString()
+										})}
+									</p>
+								</div>
+								<form method="POST" action="?/deleteToken">
+									<input type="hidden" name="tokenId" value={savedToken.id} />
+									<button type="submit" class="btn btn-sm btn-error">{m.common_delete()}</button>
+								</form>
 							</li>
 						{/each}
 					</ul>
