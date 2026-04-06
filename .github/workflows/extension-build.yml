@@ -1,0 +1,45 @@
+name: Build Browser Extensions
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - extension/**
+      - .github/workflows/extension-build.yml
+
+permissions:
+  contents: read
+
+jobs:
+  build-extension:
+    name: Build ${{ matrix.browser }} extension
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        browser:
+          - chrome
+          - firefox
+          - edge
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Prepare artifact directory
+        run: mkdir -p dist
+
+      - name: Package extension
+        run: |
+          ARCHIVE_NAME="sbb-utility-${{ matrix.browser }}-${GITHUB_SHA::7}.zip"
+          cd extension
+          zip -r "../dist/$ARCHIVE_NAME" . -x "web-ext-artifacts/*"
+
+      - name: Upload extension artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbb-utility-${{ matrix.browser }}
+          path: dist/*.zip
+          if-no-files-found: error

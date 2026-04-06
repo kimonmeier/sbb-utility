@@ -17,6 +17,8 @@ RUN corepack enable
 COPY --from=deps /app/node_modules ./node_modules
 COPY package.json yarn.lock ./
 
+ENV DATABASE_URL=/data/database.db
+
 # Build the SvelteKit app (adapter-node).
 COPY . .
 RUN yarn build
