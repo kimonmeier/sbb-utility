@@ -7,7 +7,7 @@ import {
 	type SBBUtilityTouren,
 	type SBBUtilityZeitkontoSnapshot
 } from '../db/schema';
-import { sbbClient } from './sbb-client';
+import { sbbClient, toUserFacingSbbError } from './sbb-client';
 import { SopreDepot, SopreTourType, type SopreMonthsRequest } from '../../types/SopreTypes';
 
 export async function synchronizeTouren(userId: string) {
@@ -32,13 +32,16 @@ export async function synchronizeTouren(userId: string) {
 	if (!sbbToken) {
 		throw new Error('No valid token found for user. Please provide a token to synchronize touren.');
 	}
-	const tourenData = await sbbClient.getYear(sbbToken, currentYear);
+	let tourenData: SopreMonthsRequest;
+	try {
+		tourenData = await sbbClient.getYear(sbbToken, currentYear);
+	} catch (error) {
+		throw new Error(toUserFacingSbbError(error, 'Failed to fetch touren data from SBB API.'), {
+			cause: error
+		});
+	}
 
 	console.log('Fetched touren data from SBB API:', tourenData);
-
-	if (!tourenData) {
-		throw new Error('Failed to fetch touren data from SBB API. Please try again later.');
-	}
 
 	const processedTouren = await processTourenData(tourenData, userId, sbbToken);
 
@@ -97,9 +100,13 @@ export async function synchronizeTouren(userId: string) {
 const INTERESTING_ZEITKONTEN_IDS = new Set(['5', '9040', '9046', '9047']);
 
 async function synchronizeZeitkonten(userId: string, token: string) {
-	const zeitkontenData = await sbbClient.getZeitkontenPeriod(token);
-	if (!zeitkontenData) {
-		throw new Error('Failed to fetch Zeitkonten data from SBB API. Please try again later.');
+	let zeitkontenData;
+	try {
+		zeitkontenData = await sbbClient.getZeitkontenPeriod(token);
+	} catch (error) {
+		throw new Error(toUserFacingSbbError(error, 'Failed to fetch Zeitkonten data from SBB API.'), {
+			cause: error
+		});
 	}
 
 	const currentSnapshotDate = new Date().toISOString().slice(0, 10);
@@ -154,9 +161,17 @@ async function processTourenData(
 				tour.abkuerzung = parseTourType(item.abkuerzung!);
 			} else {
 				if (item.tournummer) {
-					const tourDetail = item.mitarbeiterTourId
-						? await sbbClient.getTourDetail(token, item.mitarbeiterTourId)
-						: null;
+					let tourDetail = null;
+					if (item.mitarbeiterTourId) {
+						try {
+							tourDetail = await sbbClient.getTourDetail(token, item.mitarbeiterTourId);
+						} catch (error) {
+							console.warn(
+								`Skipping tour detail fetch for mitarbeiterTourId ${item.mitarbeiterTourId}:`,
+								toUserFacingSbbError(error, 'Failed to fetch tour detail from SBB API.')
+							);
+						}
+					}
 
 					if (tourDetail?.tourdetailDTO) {
 						tour.schichtdauer = parseDurationToMinutes(tourDetail.tourdetailDTO.schichtdauer);
