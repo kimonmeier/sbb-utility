@@ -7,8 +7,8 @@ import type {
 const BASE_API_ENDPOINT = 'https://sopreweb-tourenplan-api.app.sbb.ch';
 const BASE_DETAIL_API_ENDPOINT = 'https://sopreweb-tourdetail-api.app.sbb.ch';
 const BASE_ZEITKONTEN_API_ENDPOINT = 'https://sopreweb-zeitkonten-api.app.sbb.ch';
-const MAX_RETRY_ATTEMPTS = 3;
-const RETRY_BACKOFF_BASE_MS = 500;
+const MAX_RETRY_ATTEMPTS = 10;
+const RETRY_BACKOFF_BASE_MS = 1000;
 
 const RETRYABLE_STATUS_CODES = new Set([408, 425, 429, 500, 502, 503, 504]);
 const MAX_LOGGED_BODY_LENGTH = 500;

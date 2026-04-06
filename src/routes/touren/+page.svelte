@@ -12,14 +12,42 @@
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 	let isSyncing = $state(false);
+	let showSlowSyncMessage = $state(false);
+	let showSyncCompleteMessage = $state(false);
 	let selectedTour = $state<TourEntry | null>(null);
 	let selectedTourDay = $state<Date | null>(null);
 	const TODAY_CELL_ID = 'touren-heute';
+	let slowSyncTimer: ReturnType<typeof setTimeout> | null = null;
+	let syncCompleteTimer: ReturnType<typeof setTimeout> | null = null;
 
 	type Tour = TourEntry;
 
+	const clearSlowSyncTimer = () => {
+		if (slowSyncTimer) {
+			clearTimeout(slowSyncTimer);
+			slowSyncTimer = null;
+		}
+	};
+
+	const clearSyncCompleteTimer = () => {
+		if (syncCompleteTimer) {
+			clearTimeout(syncCompleteTimer);
+			syncCompleteTimer = null;
+		}
+	};
+
 	const enhanceSync: SubmitFunction = () => {
 		isSyncing = true;
+		showSlowSyncMessage = false;
+		showSyncCompleteMessage = false;
+		clearSlowSyncTimer();
+		clearSyncCompleteTimer();
+
+		slowSyncTimer = setTimeout(() => {
+			if (isSyncing) {
+				showSlowSyncMessage = true;
+			}
+		}, 60_000);
 
 		return async ({ result, update }) => {
 			try {
@@ -29,9 +57,16 @@
 
 				if (result.type === 'success') {
 					await invalidateAll();
+					showSyncCompleteMessage = true;
+					clearSyncCompleteTimer();
+					syncCompleteTimer = setTimeout(() => {
+						showSyncCompleteMessage = false;
+					}, 5_000);
 				}
 			} finally {
 				isSyncing = false;
+				showSlowSyncMessage = false;
+				clearSlowSyncTimer();
 			}
 		};
 	};
@@ -110,6 +145,8 @@
 
 		return () => {
 			window.removeEventListener('keydown', onEscape);
+			clearSlowSyncTimer();
+			clearSyncCompleteTimer();
 		};
 	});
 </script>
@@ -125,6 +162,18 @@
 	{#if isSyncing}
 		<div class="mb-6">
 			<progress class="progress w-full progress-primary"></progress>
+		</div>
+	{/if}
+
+	{#if isSyncing && showSlowSyncMessage}
+		<div class="mb-6 alert alert-warning">
+			<span>The SBB Api is slow, please wait</span>
+		</div>
+	{/if}
+
+	{#if showSyncCompleteMessage}
+		<div class="mb-6 alert alert-success">
+			<span>Synchronisation complete</span>
 		</div>
 	{/if}
 
