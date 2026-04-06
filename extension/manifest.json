@@ -1,7 +1,7 @@
 {
 	"manifest_version": 2,
 	"name": "SBB Utility - Token Grabber",
-	"version": "1.1",
+	"version": "1.2",
 	"description": "Intercepts the Bearer token from SBB APIs and forwards it to a custom server so that it can be used for authentication purposes.",
 	"permissions": ["webRequest", "storage", "<all_urls>"],
 	"browser_specific_settings": {
