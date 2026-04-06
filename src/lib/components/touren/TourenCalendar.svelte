@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { SopreTourType } from '$lib/types/SopreTypes';
+	import { m } from '$lib/paraglide/messages.js';
 	import type { CalendarMonth, TourEntry } from './touren-types';
 
 	let {
@@ -75,12 +76,12 @@
 												<div class="badge badge-outline badge-xs">{day.tour.depot}</div>
 											{/if}
 											{#if day.tour.aenderungKommentar}
-												<div class="badge badge-xs badge-info">Kommentar</div>
+												<div class="badge badge-xs badge-info">{m.touren_comment()}</div>
 											{/if}
 										</div>
 									</button>
 								{:else if day.inCurrentMonth}
-									<p class="mt-2 text-xs opacity-35">Keine Tour</p>
+									<p class="mt-2 text-xs opacity-35">{m.touren_no_tour()}</p>
 								{/if}
 							</article>
 						{/each}

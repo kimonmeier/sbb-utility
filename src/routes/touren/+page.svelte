@@ -8,6 +8,7 @@
 	import TourenDetailsDrawer from '$lib/components/touren/TourenDetailsDrawer.svelte';
 	import { buildCalendarMonths } from '$lib/components/touren/touren-calendar.utils';
 	import type { CalendarMonth, TourEntry } from '$lib/components/touren/touren-types';
+	import { m } from '$lib/paraglide/messages.js';
 
 	let { data, form }: { data: PageData; form: ActionData } = $props();
 	let isSyncing = $state(false);
@@ -46,7 +47,15 @@
 			year: 'numeric'
 		}).format(value instanceof Date ? value : new Date(value));
 
-	const weekdayLabels = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
+	const weekdayLabels = $derived.by(() => [
+		m.weekday_mo(),
+		m.weekday_tu(),
+		m.weekday_we(),
+		m.weekday_th(),
+		m.weekday_fr(),
+		m.weekday_sa(),
+		m.weekday_su()
+	]);
 
 	const formatTime = (value?: number | Date | null) =>
 		value
@@ -64,7 +73,7 @@
 			return tour.abkuerzung;
 		}
 
-		return 'Unbenannte Tour';
+		return m.touren_unnamed_tour();
 	};
 
 	const openTourDetails = (tour: Tour, day: Date) => {
@@ -106,8 +115,8 @@
 </script>
 
 <svelte:head>
-	<title>Meine Touren</title>
-	<meta name="description" content="Overview of all tours assigned to the logged in user." />
+	<title>{m.touren_title()}</title>
+	<meta name="description" content={m.touren_meta_description()} />
 </svelte:head>
 
 <div class="mx-auto w-full max-w-6xl grow px-4 py-10">
@@ -127,7 +136,7 @@
 
 	{#if data.touren.length === 0}
 		<div class="mb-6 rounded-box border border-base-300 bg-base-200 p-4 text-sm">
-			Keine Touren gefunden. Der Kalender zeigt dir trotzdem den aktuellen Monat.
+			{m.touren_no_tours_found()}
 		</div>
 	{/if}
 

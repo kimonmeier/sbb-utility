@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
+	import { m } from '$lib/paraglide/messages.js';
 	import type { ActionData } from './$types';
 
 	let { form }: { form?: ActionData } = $props();
@@ -9,8 +10,8 @@
 	<div class="card w-full bg-base-200 shadow-xl">
 		<div class="card-body gap-5">
 			<div>
-				<h1 class="text-2xl font-bold">Create account</h1>
-				<p class="mt-1 text-sm opacity-70">Register with Better Auth email and password.</p>
+				<h1 class="text-2xl font-bold">{m.auth_create_account_title()}</h1>
+				<p class="mt-1 text-sm opacity-70">{m.auth_register_subtitle()}</p>
 			</div>
 
 			{#if form?.error}
@@ -19,11 +20,11 @@
 
 			<form method="POST" class="space-y-4">
 				<fieldset class="fieldset">
-					<legend class="fieldset-legend">Name</legend>
+					<legend class="fieldset-legend">{m.auth_name()}</legend>
 					<input
 						type="text"
 						name="name"
-						placeholder="Jane Doe"
+						placeholder={m.auth_name_placeholder()}
 						value={form?.name ?? ''}
 						required
 						class="input-bordered input w-full"
@@ -31,11 +32,11 @@
 				</fieldset>
 
 				<fieldset class="fieldset">
-					<legend class="fieldset-legend">Email</legend>
+					<legend class="fieldset-legend">{m.auth_email()}</legend>
 					<input
 						type="email"
 						name="email"
-						placeholder="you@example.com"
+						placeholder={m.auth_email_placeholder()}
 						value={form?.email ?? ''}
 						required
 						class="input-bordered input w-full"
@@ -43,23 +44,23 @@
 				</fieldset>
 
 				<fieldset class="fieldset">
-					<legend class="fieldset-legend">Password</legend>
+					<legend class="fieldset-legend">{m.auth_password()}</legend>
 					<input
 						type="password"
 						name="password"
-						placeholder="Min. 8 characters"
+						placeholder={m.auth_password_min_placeholder()}
 						required
 						minlength="8"
 						class="input-bordered input w-full"
 					/>
 				</fieldset>
 
-				<button type="submit" class="btn mt-2 w-full btn-primary">Register</button>
+				<button type="submit" class="btn mt-2 w-full btn-primary">{m.nav_register()}</button>
 			</form>
 
 			<p class="text-sm">
-				Already have an account?
-				<a href={resolve('/auth/login')} class="link link-primary">Login</a>
+				{m.auth_already_have_account()}
+				<a href={resolve('/auth/login')} class="link link-primary">{m.nav_login()}</a>
 			</p>
 		</div>
 	</div>

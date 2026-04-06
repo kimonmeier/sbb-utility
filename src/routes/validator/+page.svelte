@@ -3,6 +3,7 @@
 	import type { PageData } from './$types';
 	import { buildCalendarMonths } from '$lib/components/touren/touren-calendar.utils';
 	import type { CalendarMonth, TourEntry } from '$lib/components/touren/touren-types';
+	import { m } from '$lib/paraglide/messages.js';
 
 	let { data }: { data: PageData } = $props();
 
@@ -34,16 +35,23 @@
 	};
 
 	const MITENTSCHEID_STORAGE_KEY = 'validator.mitentscheidSelections.v3';
-	const weekdayLabels = ['Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa', 'So'];
+	const weekdayLabels = $derived.by(() => [
+		m.weekday_mo(),
+		m.weekday_tu(),
+		m.weekday_we(),
+		m.weekday_th(),
+		m.weekday_fr(),
+		m.weekday_sa(),
+		m.weekday_su()
+	]);
 	const validatorRuleLegend: Array<{
 		title: string;
 		description: string;
 		codes: string[];
 	}> = [
 		{
-			title: 'Nachtfenster und Serien',
-			description:
-				'Prüft Nachtarbeit zwischen 00:00 und 04:00 auf 28-Tage-Limit und zu lange Folgen hintereinander.',
+			title: m.validator_rule_night_title(),
+			description: m.validator_rule_night_desc(),
 			codes: [
 				'NIGHT_BOUNDARY_28_DAY_LIMIT_EXCEEDED',
 				'NIGHT_BOUNDARY_CONSECUTIVE_DAYS_MITENTSCHEID',
@@ -51,9 +59,8 @@
 			]
 		},
 		{
-			title: 'Sonderbereich 9h bis 10h Arbeitszeit',
-			description:
-				'Prüft Zusatzregeln für Touren über 9h bis maximal 10h Arbeitszeit (keine Folgetage, max. 11h Schichtdauer, kein Nachtfenster).',
+			title: m.validator_rule_special_title(),
+			description: m.validator_rule_special_desc(),
 			codes: [
 				'SPECIAL_WORK_RANGE_CONSECUTIVE_DAYS',
 				'SPECIAL_WORK_RANGE_SHIFT_TOO_LONG',
@@ -61,15 +68,13 @@
 			]
 		},
 		{
-			title: 'Tourdaten und Tageslogik',
-			description:
-				'Prüft Pflichtfelder und Plausibilitäten wie Start/Ende, Einsatzdaten auf freien Tagen und Reihenfolge der Zeiten.',
+			title: m.validator_rule_data_title(),
+			description: m.validator_rule_data_desc(),
 			codes: ['NON_WORKING_WITH_TIMES', 'MISSING_BOUNDARY_TIMES', 'END_BEFORE_START']
 		},
 		{
-			title: 'Ruhezeiten und Ruhetag-Regeln',
-			description:
-				'Prüft Mindestruhe zwischen Diensten sowie Mindestdauer eines einzelnen Ruhetagsblocks.',
+			title: m.validator_rule_rest_title(),
+			description: m.validator_rule_rest_desc(),
 			codes: [
 				'INSUFFICIENT_REST',
 				'RT_SINGLE_TOTAL_DURATION_TOO_SHORT',
@@ -77,9 +82,8 @@
 			]
 		},
 		{
-			title: 'Arbeits- und Schichtdauer',
-			description:
-				'Prüft Grenzwerte der Arbeitszeit, Schichtdauer und Beziehungen zwischen Arbeitszeit, Schichtdauer und bezahlter Pause.',
+			title: m.validator_rule_duration_title(),
+			description: m.validator_rule_duration_desc(),
 			codes: [
 				'WORKING_TIME_BELOW_MINIMUM_SHIFT',
 				'SHIFT_TOO_LONG',
@@ -89,9 +93,8 @@
 			]
 		},
 		{
-			title: 'Durchschnitt über 7 Arbeitstage',
-			description:
-				'Prüft, ob der Durchschnitt der letzten 7 relevanten Arbeitstage 9 Stunden überschreitet.',
+			title: m.validator_rule_avg_title(),
+			description: m.validator_rule_avg_desc(),
 			codes: ['AVG_WORKING_TIME_7_WORKDAYS_EXCEEDED']
 		}
 	];
@@ -365,40 +368,49 @@
 </script>
 
 <svelte:head>
-	<title>Validator</title>
-	<meta
-		name="description"
-		content="Validiert Touren nach AZG-Regeln und zeigt Fehler und Mitentscheid-Warnungen im Kalender an."
-	/>
+	<title>{m.validator_title()}</title>
+	<meta name="description" content={m.validator_meta_description()} />
 </svelte:head>
 
 <div class="mx-auto w-full max-w-7xl grow space-y-6 px-4 py-10">
 	<section class="rounded-box border border-base-300 bg-base-100 p-5">
-		<h1 class="text-2xl font-bold">Validator</h1>
+		<h1 class="text-2xl font-bold">{m.validator_heading()}</h1>
 		<p class="mt-2 text-sm text-base-content/70">
-			Klicke einen Tag im Kalender an, um rechts alle Details zu sehen.
+			{m.validator_intro_select_day()}
 		</p>
 		<div class="mt-4 flex flex-wrap items-center gap-3 text-sm">
-			<div class="badge gap-2 badge-outline badge-success">Gueltig</div>
-			<div class="badge gap-2 badge-outline badge-warning">Warnung</div>
-			<div class="badge gap-2 badge-outline badge-error">Fehler</div>
-			<div class="badge gap-2 badge-outline badge-neutral">Offene Fehler: {openIssueCount}</div>
-			<div class="badge gap-2 badge-outline badge-error">Fehlertage: {totalInvalidDays}</div>
-			<div class="badge gap-2 badge-outline badge-warning">Warntage: {totalWarningDays}</div>
+			<div class="badge gap-2 badge-outline badge-success">{m.status_valid()}</div>
+			<div class="badge gap-2 badge-outline badge-warning">{m.status_warning()}</div>
+			<div class="badge gap-2 badge-outline badge-error">{m.status_error()}</div>
+			<div class="badge gap-2 badge-outline badge-neutral">
+				{m.validator_open_errors({ count: openIssueCount })}
+			</div>
+			<div class="badge gap-2 badge-outline badge-error">
+				{m.validator_invalid_days({ count: totalInvalidDays })}
+			</div>
+			<div class="badge gap-2 badge-outline badge-warning">
+				{m.validator_warning_days({ count: totalWarningDays })}
+			</div>
 		</div>
 		<div class="mt-4 rounded-xl border border-base-300 bg-base-200/60 p-3">
-			<p class="text-sm font-semibold">Mitentscheid-Übersicht</p>
+			<p class="text-sm font-semibold">{m.mitentscheid_overview_title()}</p>
 			<div class="mt-2 flex flex-wrap gap-2 text-xs">
-				<div class="badge badge-outline">Gesamt: {mitentscheidOverviewEntries.length}</div>
-				<div class="badge badge-outline badge-warning">Angenommen: {acceptedMitentscheidCount}</div>
-				<div class="badge badge-outline badge-error">Abgelehnt: {rejectedMitentscheidCount}</div>
-				<div class="badge badge-outline badge-neutral">Offen: {undecidedMitentscheidCount}</div>
+				<div class="badge badge-outline">
+					{m.mitentscheid_total({ count: mitentscheidOverviewEntries.length })}
+				</div>
+				<div class="badge badge-outline badge-warning">
+					{m.mitentscheid_accepted({ count: acceptedMitentscheidCount })}
+				</div>
+				<div class="badge badge-outline badge-error">
+					{m.mitentscheid_rejected({ count: rejectedMitentscheidCount })}
+				</div>
+				<div class="badge badge-outline badge-neutral">
+					{m.mitentscheid_open({ count: undecidedMitentscheidCount })}
+				</div>
 			</div>
 
 			{#if decidedMitentscheidEntries.length === 0}
-				<p class="mt-3 text-xs text-base-content/70">
-					Es wurden noch keine Mitentscheide getroffen.
-				</p>
+				<p class="mt-3 text-xs text-base-content/70">{m.mitentscheid_none()}</p>
 			{:else}
 				<div class="mt-3 max-h-56 space-y-2 overflow-auto pr-1">
 					{#each decidedMitentscheidEntries as entry (entry.decisionKey)}
@@ -408,16 +420,18 @@
 									class={`badge badge-xs ${entry.decision === 'accepted' ? 'badge-warning' : 'badge-error'}`}
 								>
 									{entry.decision === 'accepted'
-										? 'Mitentscheid angewendet'
-										: 'Mitentscheid abgelehnt'}
+										? m.mitentscheid_applied()
+										: m.mitentscheid_denied()}
 								</span>
 								<span class="text-[11px] opacity-60">{entry.code}</span>
 							</div>
 							<p class="mt-1 line-clamp-2 text-xs" title={entry.message}>{entry.message}</p>
 							<p class="mt-1 text-[11px] opacity-70">
 								{entry.dateKeys.length === 1
-									? `Tag: ${formatDateShort(entry.dateKeys[0])}`
-									: `Tage: ${entry.dateKeys.map((dateKey) => formatDateShort(dateKey)).join(', ')}`}
+									? m.mitentscheid_day({ date: formatDateShort(entry.dateKeys[0]) })
+									: m.mitentscheid_days({
+											dates: entry.dateKeys.map((dateKey) => formatDateShort(dateKey)).join(', ')
+										})}
 							</p>
 						</div>
 					{/each}
@@ -426,11 +440,9 @@
 		</div>
 
 		<details class="mt-4 rounded-xl border border-base-300 bg-base-200/50 p-3">
-			<summary class="cursor-pointer text-sm font-semibold">Regellegende (getestete Regeln)</summary
-			>
+			<summary class="cursor-pointer text-sm font-semibold">{m.validator_legend_summary()}</summary>
 			<p class="mt-2 text-xs text-base-content/70">
-				Die Legende zeigt, welche Regelgruppen der Validator prüft und welche Regelcodes dazu
-				gehören.
+				{m.validator_legend_intro()}
 			</p>
 			<div class="mt-3 space-y-3">
 				{#each validatorRuleLegend as group (group.title)}
@@ -492,10 +504,10 @@
 												class={`mt-2 text-xs font-semibold ${status === 'invalid' ? 'text-error' : status === 'warning' ? 'text-warning' : 'text-success'}`}
 											>
 												{status === 'invalid'
-													? 'Fehler'
+													? m.status_error()
 													: status === 'warning'
-														? 'Warnung'
-														: 'Validiert'}
+														? m.status_warning()
+														: m.status_valid()}
 											</p>
 											<p title={firstIssue.message} class="mt-1 line-clamp-3 text-xs opacity-90">
 												{firstIssue.message}
@@ -506,7 +518,7 @@
 												</p>
 											{/if}
 										{:else if day.inCurrentMonth}
-											<p class="mt-2 text-xs opacity-35">Keine Tour</p>
+											<p class="mt-2 text-xs opacity-35">{m.validator_no_tour()}</p>
 										{/if}
 									</button>
 								{/each}
@@ -518,28 +530,24 @@
 		</div>
 
 		<aside class="rounded-box border border-base-300 bg-base-100 p-4 lg:sticky lg:top-24">
-			<h2 class="text-lg font-semibold">Tagdetails</h2>
+			<h2 class="text-lg font-semibold">{m.validator_daydetails_title()}</h2>
 
 			{#if !selectedDateKey}
-				<p class="mt-3 text-sm text-base-content/70">
-					Waehle einen Tag im Kalender, um Details zu sehen.
-				</p>
+				<p class="mt-3 text-sm text-base-content/70">{m.validator_select_day_prompt()}</p>
 			{:else}
 				<p class="mt-2 text-sm font-semibold">{formatDateLong(selectedDateKey)}</p>
 				<p
 					class={`mt-1 text-xs font-semibold ${selectedDateStatus === 'invalid' ? 'text-error' : selectedDateStatus === 'warning' ? 'text-warning' : 'text-success'}`}
 				>
 					{selectedDateStatus === 'invalid'
-						? 'Status: Fehler'
+						? m.validator_status_invalid()
 						: selectedDateStatus === 'warning'
-							? 'Status: Warnung'
-							: 'Status: Gueltig'}
+							? m.validator_status_warning()
+							: m.validator_status_valid()}
 				</p>
 
 				{#if !selectedDetails || selectedDetails.issues.length === 0}
-					<p class="mt-3 text-sm text-base-content/70">
-						Keine Regelverletzung oder Warnung vorhanden.
-					</p>
+					<p class="mt-3 text-sm text-base-content/70">{m.validator_no_issues()}</p>
 				{:else}
 					<div class="mt-4 space-y-3">
 						{#each selectedDetails.issues as issue (issue.issueId)}
@@ -554,18 +562,16 @@
 										class={`badge badge-sm ${effectiveSeverity === 'error' ? 'badge-error' : 'badge-warning'}`}
 									>
 										{issueState === 'hidden'
-											? 'Mitentscheid'
+											? m.validator_badge_mitentscheid()
 											: effectiveSeverity === 'error'
-												? 'Fehler'
-												: 'Warnung'}
+												? m.validator_badge_error()
+												: m.validator_badge_warning()}
 									</span>
 									<span class="text-[11px] opacity-60">{issue.code}</span>
 								</div>
 								<p class="mt-2 text-sm" title={issue.message}>{issue.message}</p>
 								{#if issueState === 'hidden'}
-									<p class="mt-2 text-xs text-success">
-										Diese Meldung ist in der Übersicht ausgeblendet.
-									</p>
+									<p class="mt-2 text-xs text-success">{m.validator_issue_hidden()}</p>
 								{/if}
 
 								{#if issue.canAcknowledge}
@@ -575,14 +581,14 @@
 											onclick={() => setMitentscheidDecision(issue, 'accepted')}
 											class={`btn btn-xs ${mitentscheidDecision === 'accepted' ? 'btn-warning' : 'btn-outline'}`}
 										>
-											Mitentscheid anwenden
+											{m.validator_apply_mitentscheid()}
 										</button>
 										<button
 											type="button"
 											onclick={() => setMitentscheidDecision(issue, 'rejected')}
 											class={`btn btn-xs ${mitentscheidDecision === 'rejected' ? 'btn-error' : 'btn-outline'}`}
 										>
-											Mitentscheid ablehnen
+											{m.validator_reject_mitentscheid()}
 										</button>
 										{#if mitentscheidDecision}
 											<button
@@ -590,13 +596,13 @@
 												onclick={() => setMitentscheidDecision(issue)}
 												class="btn btn-ghost btn-xs"
 											>
-												Entscheid zurücksetzen
+												{m.validator_reset_decision()}
 											</button>
 										{/if}
 									</div>
 									{#if issue.decisionGroup}
 										<p class="mt-2 text-[11px] opacity-70">
-											Dieser Entscheid wird für dieses konkrete 4-Wochen-Fenster angewendet.
+											{m.validator_decision_window_note()}
 										</p>
 									{/if}
 								{/if}

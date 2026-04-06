@@ -1,5 +1,6 @@
 <script lang="ts">
 	import type { PageData } from './$types';
+	import { m } from '$lib/paraglide/messages.js';
 
 	let { data }: { data: PageData } = $props();
 
@@ -17,16 +18,32 @@
 	const formatCoverageText = (balance: number, singular: string, plural: string) => {
 		if (balance > 0) {
 			const amount = formatNumber(balance);
-			return `${amount} ${balance === 1 ? singular : plural} zu wenig`;
+			return m.arbeitszeit_coverage_too_few({
+				amount,
+				unit: balance === 1 ? singular : plural
+			});
 		}
 
 		if (balance < 0) {
 			const amount = formatNumber(Math.abs(balance));
-			return `${amount} ${Math.abs(balance) === 1 ? singular : plural} zu viel`;
+			return m.arbeitszeit_coverage_too_many({
+				amount,
+				unit: Math.abs(balance) === 1 ? singular : plural
+			});
 		}
 
-		return 'Ausgeglichen';
+		return m.arbeitszeit_coverage_balanced();
 	};
+
+	const calendarWeekdayLabels = $derived.by(() => [
+		m.weekday_mo(),
+		m.weekday_tu(),
+		m.weekday_we(),
+		m.weekday_th(),
+		m.weekday_fr(),
+		m.weekday_sa(),
+		m.weekday_su()
+	]);
 
 	const accountFilterOptions = ['5', '9040', '9046', '9047'] as const;
 	type AccountFilter = (typeof accountFilterOptions)[number];
@@ -211,37 +228,34 @@
 </script>
 
 <svelte:head>
-	<title>Arbeitszeit</title>
-	<meta
-		name="description"
-		content="Historie und Zukunftsprojektion der Arbeitszeitkonten basierend auf Zeitkonten und Touren."
-	/>
+	<title>{m.arbeitszeit_title()}</title>
+	<meta name="description" content={m.arbeitszeit_meta_description()} />
 </svelte:head>
 
 <div class="mx-auto w-full max-w-6xl grow space-y-8 px-4 py-10">
 	<section class="rounded-box border border-base-300 bg-base-100 p-5">
-		<h1 class="text-2xl font-bold">Arbeitszeitkonten</h1>
+		<h1 class="text-2xl font-bold">{m.arbeitszeit_heading()}</h1>
 		<p class="mt-2 text-sm text-base-content/70">
-			Historie aus Zeitkonten-Snapshots und Zukunftsprojektion anhand geplanter Touren.
+			{m.arbeitszeit_intro()}
 		</p>
 		{#if data.latestSnapshotDate}
 			<p class="mt-2 text-xs text-base-content/60">
-				Letzter Snapshot: <span class="font-semibold">{data.latestSnapshotDate}</span>
+				{m.arbeitszeit_last_snapshot({ date: data.latestSnapshotDate })}
 			</p>
 		{/if}
 	</section>
 
 	<section class="rounded-box border border-base-300 bg-base-100 p-5">
-		<h2 class="text-lg font-semibold">Prognose Endsaldo</h2>
+		<h2 class="text-lg font-semibold">{m.arbeitszeit_balance_forecast()}</h2>
 		<div class="mt-4 overflow-x-auto">
 			<table class="table table-zebra">
 				<thead>
 					<tr>
-						<th>Konto</th>
-						<th>Beschreibung</th>
-						<th>Aktuell</th>
-						<th>Prognose</th>
-						<th>Differenz</th>
+						<th>{m.arbeitszeit_account()}</th>
+						<th>{m.arbeitszeit_description()}</th>
+						<th>{m.arbeitszeit_current()}</th>
+						<th>{m.arbeitszeit_forecast()}</th>
+						<th>{m.arbeitszeit_difference()}</th>
 					</tr>
 				</thead>
 				<tbody>
@@ -262,66 +276,74 @@
 	</section>
 
 	<section class="rounded-box border border-base-300 bg-base-100 p-5">
-		<h2 class="text-lg font-semibold">Ruhetag Rechner {data.restDayCalculator.year}</h2>
+		<h2 class="text-lg font-semibold">
+			{m.arbeitszeit_restday_calculator({ year: data.restDayCalculator.year })}
+		</h2>
 		<p class="mt-2 text-sm text-base-content/70">
-			Berechnet das ganze Jahr ({data.restDayCalculator.fullYearRange.from} bis {data
-				.restDayCalculator.fullYearRange.to}) nach Ziffer 72 GAV: 63 Ruhetage und
-			{data.restDayCalculator.has53Saturdays
-				? ' 53 Ausgleichstage (53 Samstage).'
-				: ' 52 Ausgleichstage (52 Samstage).'}
+			{m.arbeitszeit_restday_intro({
+				from: data.restDayCalculator.fullYearRange.from,
+				to: data.restDayCalculator.fullYearRange.to,
+				ctTarget: data.restDayCalculator.expectedCtCount
+			})}
 		</p>
 
 		<div class="mt-4 grid gap-3 md:grid-cols-3">
 			<div class="rounded-box border border-base-300 bg-base-200/60 p-3">
-				<p class="text-xs uppercase opacity-60">Ruhetage</p>
+				<p class="text-xs uppercase opacity-60">{m.arbeitszeit_restdays()}</p>
 				<p class="mt-1 text-base font-semibold">
-					Soll: {data.restDayCalculator.expectedRtCount} | Geplant: {data.restDayCalculator
-						.knownRtCount}
-					| Ferien: {data.restDayCalculator.ferienRtCount} | Geschätzt: {data.restDayCalculator
-						.estimatedRtCount}
+					{m.arbeitszeit_target_planned_estimated_holiday({
+						target: data.restDayCalculator.expectedRtCount,
+						planned: data.restDayCalculator.knownRtCount,
+						holiday: data.restDayCalculator.ferienRtCount,
+						estimated: data.restDayCalculator.estimatedRtCount
+					})}
 				</p>
 				<p
 					class={`mt-1 text-sm ${data.restDayCalculator.projectedRtBalanceWithEstimate > 0 ? 'text-warning' : data.restDayCalculator.projectedRtBalanceWithEstimate < 0 ? 'text-error' : 'text-success'}`}
 				>
 					{formatCoverageText(
 						data.restDayCalculator.projectedRtBalanceWithEstimate,
-						'Ruhetag',
-						'Ruhetage'
+						m.arbeitszeit_unit_restday(),
+						m.arbeitszeit_unit_restdays()
 					)}
 				</p>
 			</div>
 
 			<div class="rounded-box border border-base-300 bg-base-200/60 p-3">
-				<p class="text-xs uppercase opacity-60">Kompensationstage</p>
+				<p class="text-xs uppercase opacity-60">{m.arbeitszeit_compdays()}</p>
 				<p class="mt-1 text-base font-semibold">
-					Soll: {data.restDayCalculator.expectedCtCount} | Geplant: {data.restDayCalculator
-						.knownCtCount}
-					| Ferien: {data.restDayCalculator.ferienCtCount} | Geschätzt: {data.restDayCalculator
-						.estimatedCtCount}
+					{m.arbeitszeit_target_planned_estimated_holiday({
+						target: data.restDayCalculator.expectedCtCount,
+						planned: data.restDayCalculator.knownCtCount,
+						holiday: data.restDayCalculator.ferienCtCount,
+						estimated: data.restDayCalculator.estimatedCtCount
+					})}
 				</p>
 				<p
 					class={`mt-1 text-sm ${data.restDayCalculator.projectedCtBalanceWithEstimate > 0 ? 'text-warning' : data.restDayCalculator.projectedCtBalanceWithEstimate < 0 ? 'text-error' : 'text-success'}`}
 				>
 					{formatCoverageText(
 						data.restDayCalculator.projectedCtBalanceWithEstimate,
-						'Kompensationstag',
-						'Kompensationstage'
+						m.arbeitszeit_unit_compday(),
+						m.arbeitszeit_unit_compdays()
 					)}
 				</p>
 			</div>
 
 			<div class="rounded-box border border-base-300 bg-base-200/60 p-3">
-				<p class="text-xs uppercase opacity-60">Kombiniert RT + CT</p>
+				<p class="text-xs uppercase opacity-60">{m.arbeitszeit_combined()}</p>
 				<p class="mt-1 text-base font-semibold">
-					Total: {data.restDayCalculator.totalRtCount + data.restDayCalculator.totalCtCount}
+					{m.arbeitszeit_total({
+						total: data.restDayCalculator.totalRtCount + data.restDayCalculator.totalCtCount
+					})}
 				</p>
 				<p
 					class={`mt-1 text-sm ${data.restDayCalculator.projectedCombinedBalanceWithEstimate > 0 ? 'text-warning' : data.restDayCalculator.projectedCombinedBalanceWithEstimate < 0 ? 'text-error' : 'text-success'}`}
 				>
 					{formatCoverageText(
 						data.restDayCalculator.projectedCombinedBalanceWithEstimate,
-						'Tag',
-						'Tage'
+						m.arbeitszeit_unit_day(),
+						m.arbeitszeit_unit_days()
 					)}
 				</p>
 			</div>
@@ -329,24 +351,27 @@
 
 		<div class="mt-4 rounded-box border border-base-300 bg-base-200/40 p-3 text-sm">
 			<p>
-				Ferien-Anteile werden separat ausgewiesen und sind im Total bereits enthalten (RT: {data
-					.restDayCalculator.ferienRtCount}, CT: {data.restDayCalculator.ferienCtCount}).
+				{m.arbeitszeit_holiday_note({
+					rt: data.restDayCalculator.ferienRtCount,
+					ct: data.restDayCalculator.ferienCtCount
+				})}
 			</p>
 			<p class="mt-2">
-				Samstage im Jahr: {data.restDayCalculator.saturdaysInYear}. Daraus ergibt sich CT-Soll = {data
-					.restDayCalculator.expectedCtCount}.
+				{m.arbeitszeit_saturday_note({
+					saturdays: data.restDayCalculator.saturdaysInYear,
+					ctTarget: data.restDayCalculator.expectedCtCount
+				})}
 			</p>
 
 			{#if data.restDayCalculator.estimateRange}
 				<p class="mt-2">
-					Geschätzter Zeitraum mit ungeplanten RT/CT-Tagen:
-					<span class="font-semibold"
-						>{data.restDayCalculator.estimateRange.from} bis {data.restDayCalculator.estimateRange
-							.to}</span
-					>
+					{m.arbeitszeit_estimate_range({
+						from: data.restDayCalculator.estimateRange.from,
+						to: data.restDayCalculator.estimateRange.to
+					})}
 				</p>
 			{:else}
-				<p class="mt-2">Keine ungeplanten RT/CT-Tage im Jahreszyklus gefunden.</p>
+				<p class="mt-2">{m.arbeitszeit_no_estimates()}</p>
 			{/if}
 		</div>
 
@@ -355,9 +380,9 @@
 				<table class="table table-zebra table-sm">
 					<thead>
 						<tr>
-							<th>Geschätzt am</th>
-							<th>Typ</th>
-							<th>Hinweis</th>
+							<th>{m.arbeitszeit_estimated_on()}</th>
+							<th>{m.arbeitszeit_type()}</th>
+							<th>{m.arbeitszeit_hint()}</th>
 						</tr>
 					</thead>
 					<tbody>
@@ -380,10 +405,10 @@
 	</section>
 
 	<section class="rounded-box border border-base-300 bg-base-100 p-5">
-		<h2 class="text-lg font-semibold">Zukunftsereignisse</h2>
+		<h2 class="text-lg font-semibold">{m.arbeitszeit_future_events()}</h2>
 		{#if data.projectionEvents.length === 0}
 			<p class="mt-3 text-sm text-base-content/70">
-				Keine zukünftigen Touren für die Projektion gefunden.
+				{m.arbeitszeit_no_future_tours()}
 			</p>
 		{:else}
 			<div class="mt-4 flex flex-wrap items-center gap-2">
@@ -397,14 +422,14 @@
 					</button>
 				{/each}
 				<button type="button" class="btn btn-xs" onclick={() => setAllAccountFilters(true)}>
-					Alle
+					{m.arbeitszeit_all()}
 				</button>
 				<button
 					type="button"
 					class="btn btn-ghost btn-xs"
 					onclick={() => setAllAccountFilters(false)}
 				>
-					Keine
+					{m.arbeitszeit_none()}
 				</button>
 			</div>
 
@@ -414,32 +439,32 @@
 					class={`btn join-item btn-md ${futureViewMode === 'table' ? 'btn-primary' : 'btn-ghost'}`}
 					onclick={() => (futureViewMode = 'table')}
 				>
-					Tabelle
+					{m.arbeitszeit_table()}
 				</button>
 				<button
 					type="button"
 					class={`btn join-item btn-md ${futureViewMode === 'calendar' ? 'btn-primary' : 'btn-ghost'}`}
 					onclick={() => (futureViewMode = 'calendar')}
 				>
-					Kalender
+					{m.arbeitszeit_calendar()}
 				</button>
 			</div>
 
 			{#if filteredProjectionEvents.length === 0}
 				<p class="mt-3 text-sm text-base-content/70">
-					Für die gewählten Konten wurden keine Ereignisse gefunden.
+					{m.arbeitszeit_no_events_selected_accounts()}
 				</p>
 			{:else if futureViewMode === 'table'}
 				<div class="mt-4 overflow-x-auto">
 					<table class="table table-zebra">
 						<thead>
 							<tr>
-								<th>Datum</th>
-								<th>Tour</th>
-								<th>Konto</th>
-								<th>Regel</th>
-								<th>Delta</th>
-								<th>Neuer Stand</th>
+								<th>{m.arbeitszeit_date()}</th>
+								<th>{m.arbeitszeit_tour()}</th>
+								<th>{m.arbeitszeit_account()}</th>
+								<th>{m.arbeitszeit_rule()}</th>
+								<th>{m.arbeitszeit_delta()}</th>
+								<th>{m.arbeitszeit_new_balance()}</th>
 							</tr>
 						</thead>
 						<tbody>
@@ -468,13 +493,9 @@
 							<div
 								class="mb-3 grid grid-cols-7 gap-3 text-center text-sm font-semibold text-base-content/70"
 							>
-								<div>Mo</div>
-								<div>Di</div>
-								<div>Mi</div>
-								<div>Do</div>
-								<div>Fr</div>
-								<div>Sa</div>
-								<div>So</div>
+								{#each calendarWeekdayLabels as label (label)}
+									<div>{label}</div>
+								{/each}
 							</div>
 							<div class="grid grid-cols-7 gap-3">
 								{#each month.cells as cell, index (`${month.monthKey}-${index}`)}
@@ -520,7 +541,7 @@
 
 		{#if data.ignoredFutureTours.length > 0}
 			<div class="mt-5 rounded-box border border-warning/30 bg-warning/10 p-4">
-				<h3 class="font-semibold">Ignorierte Tage</h3>
+				<h3 class="font-semibold">{m.arbeitszeit_ignored_days()}</h3>
 				<p class="mt-1 text-sm text-base-content/70">
 					{data.ignoredFutureTours.length} Tag(e) wurden ignoriert (z. B. fehlende bezahlteZeit oder Ferien-Ausgleichs-/Ruhetage).
 				</p>
@@ -534,23 +555,21 @@
 	</section>
 
 	<section class="rounded-box border border-base-300 bg-base-100 p-5">
-		<h2 class="text-lg font-semibold">Historie Zeitkonten</h2>
+		<h2 class="text-lg font-semibold">{m.arbeitszeit_history_accounts()}</h2>
 		{#if historyByAccount.length === 0}
-			<p class="mt-3 text-sm text-base-content/70">
-				Keine Snapshot-Historie vorhanden. Bitte zuerst auf der Touren-Seite synchronisieren.
-			</p>
+			<p class="mt-3 text-sm text-base-content/70">{m.arbeitszeit_no_snapshot_history()}</p>
 		{:else}
 			<div class="mt-4 grid gap-4 md:grid-cols-2">
 				{#each historyByAccount as account (account.accountId)}
 					<div class="rounded-box border border-base-300 bg-base-200 p-4">
-						<h3 class="font-semibold">Konto {account.accountId}</h3>
+						<h3 class="font-semibold">{m.arbeitszeit_account()} {account.accountId}</h3>
 						<p class="text-sm text-base-content/70">{account.description}</p>
 						<div class="mt-3 max-h-72 overflow-auto">
 							<table class="table table-xs">
 								<thead>
 									<tr>
-										<th>Datum</th>
-										<th>Wert</th>
+										<th>{m.arbeitszeit_date()}</th>
+										<th>{m.arbeitszeit_value()}</th>
 									</tr>
 								</thead>
 								<tbody>
