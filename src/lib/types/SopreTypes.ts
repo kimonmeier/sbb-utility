@@ -11,6 +11,8 @@ export enum SopreTourType {
 	RESERVE_SPÄT = 'Res S',
 	FERIEN = 'Ferien',
 	GUTHABEN_RUHETAG_PERSONAL = 'Guthaben Ruhetage Tag Personal',
+	GUTHABEN_KOMPENSATIONSTAG_PERSONAL = 'Guthaben Kompensationstag Personal',
+	WOHNUNGSWECHSEL = 'WW',
 	UNBEKANNT = 'UNKNOWN'
 }
 

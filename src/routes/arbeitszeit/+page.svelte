@@ -35,6 +35,9 @@
 		return m.arbeitszeit_coverage_balanced();
 	};
 
+	const balanceToneClass = (balance: number) =>
+		balance > 0 ? 'text-warning' : balance < 0 ? 'text-error' : 'text-success';
+
 	const calendarWeekdayLabels = $derived.by(() => [
 		m.weekday_mo(),
 		m.weekday_tu(),
@@ -102,22 +105,21 @@
 	);
 
 	const filteredProjectionEventsByDate = $derived.by(() => {
-		const grouped: Array<{ date: string; events: typeof data.projectionEvents }> = [];
+		const grouped: Record<string, typeof data.projectionEvents> = {};
 
 		for (const event of filteredProjectionEvents) {
-			const existing = grouped.find((entry) => entry.date === event.date);
+			const existing = grouped[event.date];
 			if (existing) {
-				existing.events.push(event);
+				existing.push(event);
 				continue;
 			}
 
-			grouped.push({
-				date: event.date,
-				events: [event]
-			});
+			grouped[event.date] = [event];
 		}
 
-		return grouped.sort((a, b) => a.date.localeCompare(b.date));
+		return Object.entries(grouped)
+			.map(([date, events]) => ({ date, events }))
+			.sort((a, b) => a.date.localeCompare(b.date));
 	});
 
 	const formatMonthTitle = (year: number, monthZeroBased: number) =>
@@ -149,13 +151,7 @@
 			return [] as CalendarMonth[];
 		}
 
-		const monthKeys: string[] = [];
-		for (const entry of byDate) {
-			const key = entry.date.slice(0, 7);
-			if (!monthKeys.includes(key)) {
-				monthKeys.push(key);
-			}
-		}
+		const monthKeys = Array.from(new Set(byDate.map((entry) => entry.date.slice(0, 7))));
 
 		const months: CalendarMonth[] = [];
 		for (const monthKey of monthKeys) {
@@ -206,24 +202,26 @@
 	});
 
 	const historyByAccount = $derived.by(() => {
-		const grouped: Array<{ accountId: string; description: string; rows: PageData['history'] }> =
-			[];
+		const grouped: Record<
+			string,
+			{ accountId: string; description: string; rows: PageData['history'] }
+		> = {};
 
 		for (const row of data.history) {
-			const existing = grouped.find((entry) => entry.accountId === row.accountId);
+			const existing = grouped[row.accountId];
 			if (existing) {
 				existing.rows.push(row);
 				continue;
 			}
 
-			grouped.push({
+			grouped[row.accountId] = {
 				accountId: row.accountId,
 				description: row.description,
 				rows: [row]
-			});
+			};
 		}
 
-		return grouped.sort((a, b) => a.accountId.localeCompare(b.accountId));
+		return Object.values(grouped).sort((a, b) => a.accountId.localeCompare(b.accountId));
 	});
 </script>
 
@@ -299,7 +297,7 @@
 					})}
 				</p>
 				<p
-					class={`mt-1 text-sm ${data.restDayCalculator.projectedRtBalanceWithEstimate > 0 ? 'text-warning' : data.restDayCalculator.projectedRtBalanceWithEstimate < 0 ? 'text-error' : 'text-success'}`}
+					class={`mt-1 text-sm ${balanceToneClass(data.restDayCalculator.projectedRtBalanceWithEstimate)}`}
 				>
 					{formatCoverageText(
 						data.restDayCalculator.projectedRtBalanceWithEstimate,
@@ -320,7 +318,7 @@
 					})}
 				</p>
 				<p
-					class={`mt-1 text-sm ${data.restDayCalculator.projectedCtBalanceWithEstimate > 0 ? 'text-warning' : data.restDayCalculator.projectedCtBalanceWithEstimate < 0 ? 'text-error' : 'text-success'}`}
+					class={`mt-1 text-sm ${balanceToneClass(data.restDayCalculator.projectedCtBalanceWithEstimate)}`}
 				>
 					{formatCoverageText(
 						data.restDayCalculator.projectedCtBalanceWithEstimate,
@@ -338,7 +336,7 @@
 					})}
 				</p>
 				<p
-					class={`mt-1 text-sm ${data.restDayCalculator.projectedCombinedBalanceWithEstimate > 0 ? 'text-warning' : data.restDayCalculator.projectedCombinedBalanceWithEstimate < 0 ? 'text-error' : 'text-success'}`}
+					class={`mt-1 text-sm ${balanceToneClass(data.restDayCalculator.projectedCombinedBalanceWithEstimate)}`}
 				>
 					{formatCoverageText(
 						data.restDayCalculator.projectedCombinedBalanceWithEstimate,

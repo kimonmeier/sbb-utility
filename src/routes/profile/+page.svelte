@@ -16,25 +16,52 @@
 	let addApiKeyLoading = $state(false);
 	let generatedApiKey = $state<string | null>(null);
 
-	const handleAddPasskey = async () => {
+	const resetPasskeyStatus = () => {
 		addPasskeyError = '';
 		addPasskeySuccess = '';
+	};
+
+	const resetApiKeyStatus = () => {
+		addApiKeyError = '';
+		addApiKeySuccess = '';
+		generatedApiKey = null;
+	};
+
+	const withPasskeyLoading = async (action: () => Promise<void>) => {
 		addPasskeyLoading = true;
-
-		// @ts-expect-error - Better auth types might not infer plugins properly
-		const result = await authClient.passkey.addPasskey({
-			name: `${data.user.name}'s device`
-		});
-
-		addPasskeyLoading = false;
-
-		if (result.error) {
-			addPasskeyError = String(result.error.message ?? m.profile_error_register_passkey());
-			return;
+		try {
+			await action();
+		} finally {
+			addPasskeyLoading = false;
 		}
+	};
 
-		addPasskeySuccess = m.profile_passkey_added_success();
-		await invalidateAll();
+	const withApiKeyLoading = async (action: () => Promise<void>) => {
+		addApiKeyLoading = true;
+		try {
+			await action();
+		} finally {
+			addApiKeyLoading = false;
+		}
+	};
+
+	const handleAddPasskey = async () => {
+		resetPasskeyStatus();
+
+		await withPasskeyLoading(async () => {
+			// @ts-expect-error - Better auth types might not infer plugins properly
+			const result = await authClient.passkey.addPasskey({
+				name: `${data.user.name}'s device`
+			});
+
+			if (result.error) {
+				addPasskeyError = String(result.error.message ?? m.profile_error_register_passkey());
+				return;
+			}
+
+			addPasskeySuccess = m.profile_passkey_added_success();
+			await invalidateAll();
+		});
 	};
 
 	const handleAddApiKey = async (e: Event) => {
@@ -48,27 +75,24 @@
 			return;
 		}
 
-		addApiKeyError = '';
-		addApiKeySuccess = '';
-		addApiKeyLoading = true;
-		generatedApiKey = null;
+		resetApiKeyStatus();
 
-		// @ts-expect-error - Better auth types might not infer plugins properly
-		const result = await authClient.apiKey.create({
-			name: name
+		await withApiKeyLoading(async () => {
+			// @ts-expect-error - Better auth types might not infer plugins properly
+			const result = await authClient.apiKey.create({
+				name
+			});
+
+			if (result.error) {
+				addApiKeyError = String(result.error.message ?? m.profile_error_create_api_key());
+				return;
+			}
+
+			generatedApiKey = result.data.key;
+			addApiKeySuccess = m.profile_api_key_created_success();
+			formEl.reset();
+			await invalidateAll();
 		});
-
-		addApiKeyLoading = false;
-
-		if (result.error) {
-			addApiKeyError = String(result.error.message ?? m.profile_error_create_api_key());
-			return;
-		}
-
-		generatedApiKey = result.data.key;
-		addApiKeySuccess = m.profile_api_key_created_success();
-		formEl.reset();
-		await invalidateAll();
 	};
 </script>
 

@@ -9,6 +9,7 @@ const TRACKED_ACCOUNT_IDS = ['5', '9040', '9046', '9047'] as const;
 const TARGET_MINUTES_PER_DAY = 8.2 * 60;
 
 type AccountId = (typeof TRACKED_ACCOUNT_IDS)[number];
+type TourRow = typeof touren.$inferSelect;
 
 type ProjectionRule =
 	| 'RT -> 9047 (-1)'
@@ -41,6 +42,82 @@ interface RestDayEstimate {
 	date: string;
 	type: 'RT' | 'CT';
 	reason: string;
+}
+
+function requireUserOrRedirect(user: App.Locals['user']) {
+	if (!user) {
+		throw redirect(303, '/auth/login');
+	}
+
+	return user;
+}
+
+function mapSnapshotToHistoryPoint(row: typeof zeitkontenSnapshots.$inferSelect): HistoryPoint {
+	return {
+		snapshotDate: row.snapshotDate,
+		accountId: row.sapLeaveTypeId as AccountId,
+		description: row.zeitsaldoBeschreibung,
+		value: parseBalance(row.anzahl)
+	};
+}
+
+function sortHistoryPoints(a: HistoryPoint, b: HistoryPoint): number {
+	if (a.snapshotDate === b.snapshotDate) {
+		return a.accountId.localeCompare(b.accountId);
+	}
+
+	return a.snapshotDate.localeCompare(b.snapshotDate);
+}
+
+function buildLatestBalances(
+	history: HistoryPoint[]
+): Map<AccountId, { description: string; value: number }> {
+	const latestBalances = new Map<AccountId, { description: string; value: number }>();
+
+	for (const point of history) {
+		latestBalances.set(point.accountId, {
+			description: point.description,
+			value: point.value
+		});
+	}
+
+	return latestBalances;
+}
+
+function initializeProjectedBalances(
+	latestBalances: Map<AccountId, { description: string; value: number }>
+): Map<AccountId, number> {
+	const projected = new Map<AccountId, number>();
+
+	for (const accountId of TRACKED_ACCOUNT_IDS) {
+		projected.set(accountId, latestBalances.get(accountId)?.value ?? 0);
+	}
+
+	return projected;
+}
+
+function pushProjectionEvent(
+	projectionEvents: ProjectionEvent[],
+	projected: Map<AccountId, number>,
+	payload: {
+		date: string;
+		tourLabel: string;
+		accountId: AccountId;
+		rule: ProjectionRule;
+		delta: number;
+	}
+) {
+	const next = (projected.get(payload.accountId) ?? 0) + payload.delta;
+	projected.set(payload.accountId, next);
+
+	projectionEvents.push({
+		date: payload.date,
+		tourLabel: payload.tourLabel,
+		accountId: payload.accountId,
+		rule: payload.rule,
+		delta: payload.delta,
+		resultBalance: next
+	});
 }
 
 function parseBalance(value: string): number {
@@ -76,7 +153,7 @@ function countSaturdaysInYear(year: number): number {
 	return count;
 }
 
-function toTourLabel(tour: typeof touren.$inferSelect): string {
+function toTourLabel(tour: TourRow): string {
 	if (tour.tourNumber) {
 		return `Tour ${tour.tourNumber}${tour.tourSuffix ? ` ${tour.tourSuffix}` : ''}`;
 	}
@@ -113,7 +190,7 @@ function isReserveType(type?: string | null): boolean {
 }
 
 function collectFerienChargeTargets(
-	futureTours: Array<typeof touren.$inferSelect>
+	futureTours: Array<TourRow>
 ): Map<number, '9040' | '9046' | '9047'> {
 	const ferienDays = futureTours
 		.filter((entry) => entry.abkuerzung === SopreTourType.FERIEN)
@@ -175,39 +252,18 @@ function collectFerienChargeTargets(
 }
 
 export const load: PageServerLoad = async ({ locals }) => {
-	if (!locals.user) {
-		throw redirect(303, '/auth/login');
-	}
+	const user = requireUserOrRedirect(locals.user);
 
 	const snapshots = await db.query.zeitkontenSnapshots.findMany({
 		where: and(
-			eq(zeitkontenSnapshots.user, locals.user.id),
+			eq(zeitkontenSnapshots.user, user.id),
 			inArray(zeitkontenSnapshots.sapLeaveTypeId, [...TRACKED_ACCOUNT_IDS])
 		),
 		orderBy: [asc(zeitkontenSnapshots.snapshotDate), asc(zeitkontenSnapshots.capturedAt)]
 	});
 
-	const history: HistoryPoint[] = snapshots
-		.map((row) => ({
-			snapshotDate: row.snapshotDate,
-			accountId: row.sapLeaveTypeId as AccountId,
-			description: row.zeitsaldoBeschreibung,
-			value: parseBalance(row.anzahl)
-		}))
-		.sort((a, b) => {
-			if (a.snapshotDate === b.snapshotDate) {
-				return a.accountId.localeCompare(b.accountId);
-			}
-			return a.snapshotDate.localeCompare(b.snapshotDate);
-		});
-
-	const latestBalances = new Map<AccountId, { description: string; value: number }>();
-	for (const point of history) {
-		latestBalances.set(point.accountId, {
-			description: point.description,
-			value: point.value
-		});
-	}
+	const history: HistoryPoint[] = snapshots.map(mapSnapshotToHistoryPoint).sort(sortHistoryPoints);
+	const latestBalances = buildLatestBalances(history);
 
 	const latestSnapshotDate = history.at(-1)?.snapshotDate;
 	const projectionStartTimestamp = latestSnapshotDate
@@ -215,7 +271,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		: Date.now();
 
 	const futureTours = await db.query.touren.findMany({
-		where: and(eq(touren.user, locals.user.id), gt(touren.datum, projectionStartTimestamp)),
+		where: and(eq(touren.user, user.id), gt(touren.datum, projectionStartTimestamp)),
 		orderBy: [asc(touren.datum)]
 	});
 
@@ -227,7 +283,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 
 	const toursInCurrentYear = await db.query.touren.findMany({
 		where: and(
-			eq(touren.user, locals.user.id),
+			eq(touren.user, user.id),
 			gte(touren.datum, yearStartTimestamp),
 			lt(touren.datum, nextYearStartTimestamp)
 		),
@@ -235,10 +291,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 	});
 	const ferienChargeTargets = collectFerienChargeTargets(futureTours);
 
-	const projected = new Map<AccountId, number>();
-	for (const accountId of TRACKED_ACCOUNT_IDS) {
-		projected.set(accountId, latestBalances.get(accountId)?.value ?? 0);
-	}
+	const projected = initializeProjectedBalances(latestBalances);
 
 	const projectionEvents: ProjectionEvent[] = [];
 	const ignoredFutureTours: Array<{ date: string; tourLabel: string; reason: string }> = [];
@@ -248,29 +301,23 @@ export const load: PageServerLoad = async ({ locals }) => {
 		const tourLabel = toTourLabel(tour);
 
 		if (isRuhetagType(tour.abkuerzung)) {
-			const next = (projected.get('9047') ?? 0) - 1;
-			projected.set('9047', next);
-			projectionEvents.push({
+			pushProjectionEvent(projectionEvents, projected, {
 				date,
 				tourLabel,
 				accountId: '9047',
 				rule: 'RT -> 9047 (-1)',
-				delta: -1,
-				resultBalance: next
+				delta: -1
 			});
 			continue;
 		}
 
 		if (isKompensationstagType(tour.abkuerzung)) {
-			const next = (projected.get('9046') ?? 0) - 1;
-			projected.set('9046', next);
-			projectionEvents.push({
+			pushProjectionEvent(projectionEvents, projected, {
 				date,
 				tourLabel,
 				accountId: '9046',
 				rule: 'CT -> 9046 (-1)',
-				delta: -1,
-				resultBalance: next
+				delta: -1
 			});
 			continue;
 		}
@@ -286,36 +333,29 @@ export const load: PageServerLoad = async ({ locals }) => {
 				continue;
 			}
 
-			const next = (projected.get(targetAccount) ?? 0) - 1;
-			projected.set(targetAccount, next);
 			const rule: ProjectionRule =
 				targetAccount === '9040'
 					? 'Ferienregel -> 9040 (-1 Arbeitstag)'
 					: targetAccount === '9046'
 						? 'Ferienregel -> 9046 (-1 Ausgleichstag)'
 						: 'Ferienregel -> 9047 (-1 Ruhetag)';
-			projectionEvents.push({
+			pushProjectionEvent(projectionEvents, projected, {
 				date,
 				tourLabel,
 				accountId: targetAccount,
 				rule,
-				delta: -1,
-				resultBalance: next
+				delta: -1
 			});
 			continue;
 		}
 
 		if (isReserveType(tour.abkuerzung)) {
-			const delta = 0;
-			const next = (projected.get('5') ?? 0) + delta;
-			projected.set('5', next);
-			projectionEvents.push({
+			pushProjectionEvent(projectionEvents, projected, {
 				date,
 				tourLabel,
 				accountId: '5',
 				rule: 'Reserve -> 5 (fix 8.2h)',
-				delta,
-				resultBalance: next
+				delta: 0
 			});
 			continue;
 		}
@@ -324,28 +364,25 @@ export const load: PageServerLoad = async ({ locals }) => {
 			ignoredFutureTours.push({
 				date,
 				tourLabel,
-				reason: 'bezahlteZeit nicht vorhanden'
+				reason: 'keine Zeit vorhanden'
 			});
 			continue;
 		}
 
 		const delta = (tour.bezahlteZeit - TARGET_MINUTES_PER_DAY) / 60;
-		const next = (projected.get('5') ?? 0) + delta;
-		projected.set('5', next);
-		projectionEvents.push({
+		pushProjectionEvent(projectionEvents, projected, {
 			date,
 			tourLabel,
 			accountId: '5',
 			rule: 'Arbeitszeit -> 5 (bezahlteZeit - 8.2h)',
-			delta,
-			resultBalance: next
+			delta
 		});
 	}
 
 	const yearStartDayNumber = toUtcDayNumberFromDateKey(yearStartDateKey);
 	const yearEndDayNumber = toUtcDayNumberFromDateKey(yearEndDateKey);
 
-	const assignedTourByDateKey = new Map<string, typeof touren.$inferSelect>();
+	const assignedTourByDateKey = new Map<string, TourRow>();
 	for (const assignedTour of toursInCurrentYear) {
 		assignedTourByDateKey.set(toDateString(assignedTour.datum), assignedTour);
 	}

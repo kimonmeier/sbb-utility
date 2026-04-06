@@ -17,6 +17,8 @@
 	let selectedTour = $state<TourEntry | null>(null);
 	let selectedTourDay = $state<Date | null>(null);
 	const TODAY_CELL_ID = 'touren-heute';
+	const SLOW_SYNC_DELAY_MS = 60_000;
+	const SYNC_COMPLETE_ALERT_MS = 5_000;
 	let slowSyncTimer: ReturnType<typeof setTimeout> | null = null;
 	let syncCompleteTimer: ReturnType<typeof setTimeout> | null = null;
 
@@ -36,18 +38,43 @@
 		}
 	};
 
-	const enhanceSync: SubmitFunction = () => {
-		isSyncing = true;
-		showSlowSyncMessage = false;
-		showSyncCompleteMessage = false;
+	const clearAllSyncTimers = () => {
 		clearSlowSyncTimer();
 		clearSyncCompleteTimer();
+	};
 
+	const resetSyncMessages = () => {
+		showSlowSyncMessage = false;
+		showSyncCompleteMessage = false;
+	};
+
+	const startSlowSyncTimer = () => {
 		slowSyncTimer = setTimeout(() => {
 			if (isSyncing) {
 				showSlowSyncMessage = true;
 			}
-		}, 60_000);
+		}, SLOW_SYNC_DELAY_MS);
+	};
+
+	const showSyncCompleteAlertTemporarily = () => {
+		showSyncCompleteMessage = true;
+		clearSyncCompleteTimer();
+		syncCompleteTimer = setTimeout(() => {
+			showSyncCompleteMessage = false;
+		}, SYNC_COMPLETE_ALERT_MS);
+	};
+
+	const finishSyncRun = () => {
+		isSyncing = false;
+		showSlowSyncMessage = false;
+		clearSlowSyncTimer();
+	};
+
+	const enhanceSync: SubmitFunction = () => {
+		isSyncing = true;
+		resetSyncMessages();
+		clearAllSyncTimers();
+		startSlowSyncTimer();
 
 		return async ({ result, update }) => {
 			try {
@@ -57,16 +84,10 @@
 
 				if (result.type === 'success') {
 					await invalidateAll();
-					showSyncCompleteMessage = true;
-					clearSyncCompleteTimer();
-					syncCompleteTimer = setTimeout(() => {
-						showSyncCompleteMessage = false;
-					}, 5_000);
+					showSyncCompleteAlertTemporarily();
 				}
 			} finally {
-				isSyncing = false;
-				showSlowSyncMessage = false;
-				clearSlowSyncTimer();
+				finishSyncRun();
 			}
 		};
 	};
@@ -127,13 +148,11 @@
 
 	onMount(() => {
 		const todayCell = document.getElementById(TODAY_CELL_ID);
-		if (!todayCell) {
-			return;
+		if (todayCell) {
+			requestAnimationFrame(() => {
+				todayCell.scrollIntoView({ behavior: 'smooth', block: 'center' });
+			});
 		}
-
-		requestAnimationFrame(() => {
-			todayCell.scrollIntoView({ behavior: 'smooth', block: 'center' });
-		});
 
 		const onEscape = (event: KeyboardEvent) => {
 			if (event.key === 'Escape') {
@@ -145,8 +164,7 @@
 
 		return () => {
 			window.removeEventListener('keydown', onEscape);
-			clearSlowSyncTimer();
-			clearSyncCompleteTimer();
+			clearAllSyncTimers();
 		};
 	});
 </script>

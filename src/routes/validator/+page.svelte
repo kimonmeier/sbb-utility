@@ -33,6 +33,13 @@
 		dateKeys: string[];
 		issueCount: number;
 	};
+	type GroupedMitentscheidEntry = {
+		decisionKey: string;
+		code: string;
+		message: string;
+		dateKeys: string[];
+		issueCount: number;
+	};
 
 	const MITENTSCHEID_STORAGE_KEY = 'validator.mitentscheidSelections.v3';
 	const weekdayLabels = $derived.by(() => [
@@ -103,6 +110,25 @@
 	let mitentscheidState = $state<Record<string, MitentscheidDecision>>({});
 	let selectedDateKey = $state<string | null>(null);
 
+	const groupDetailsByDate = (rows: DayValidation[]): Record<string, DayDetails> => {
+		const grouped: Record<string, DayDetails> = {};
+
+		for (const row of rows) {
+			const existing = grouped[row.dateKey];
+			if (existing) {
+				existing.issues.push(...row.issues);
+				continue;
+			}
+
+			grouped[row.dateKey] = {
+				dateKey: row.dateKey,
+				issues: [...row.issues]
+			};
+		}
+
+		return grouped;
+	};
+
 	const calendarMonths = $derived.by<CalendarMonth[]>(() =>
 		buildCalendarMonths(data.touren as TourEntry[])
 	);
@@ -122,20 +148,7 @@
 		}))
 	);
 
-	const detailsByDate = $derived.by(() => {
-		const map: Record<string, DayDetails> = {};
-		for (const entry of validations) {
-			if (!map[entry.dateKey]) {
-				map[entry.dateKey] = {
-					dateKey: entry.dateKey,
-					issues: []
-				};
-			}
-
-			map[entry.dateKey].issues.push(...entry.issues);
-		}
-		return map;
-	});
+	const detailsByDate = $derived.by(() => groupDetailsByDate(validations));
 
 	const getIssueDecisionKey = (issue: Issue): string => {
 		if (issue.decisionGroup) {
@@ -233,20 +246,13 @@
 				.filter((issue) => getOverviewIssueState(issue) === 'error').length
 	);
 
-	const mitentscheidOverviewEntries = $derived.by<MitentscheidOverviewEntry[]>(() => {
-		const grouped: Record<
-			string,
-			{
-				decisionKey: string;
-				code: string;
-				message: string;
-				decision?: MitentscheidDecision;
-				dateKeys: string[];
-				issueCount: number;
-			}
-		> = {};
+	const buildMitentscheidOverviewEntries = (
+		rows: DayValidation[],
+		decisions: Record<string, MitentscheidDecision>
+	): MitentscheidOverviewEntry[] => {
+		const grouped: Record<string, GroupedMitentscheidEntry> = {};
 
-		for (const validation of validations) {
+		for (const validation of rows) {
 			for (const issue of validation.issues) {
 				if (!issue.canAcknowledge) {
 					continue;
@@ -266,7 +272,6 @@
 					decisionKey,
 					code: issue.code,
 					message: issue.message,
-					decision: mitentscheidState[decisionKey],
 					dateKeys: [validation.dateKey],
 					issueCount: 1
 				};
@@ -278,11 +283,15 @@
 				decisionKey: entry.decisionKey,
 				code: entry.code,
 				message: entry.message,
-				decision: mitentscheidState[entry.decisionKey],
+				decision: decisions[entry.decisionKey],
 				dateKeys: [...entry.dateKeys].sort(),
 				issueCount: entry.issueCount
 			}))
 			.sort((a, b) => a.dateKeys[0].localeCompare(b.dateKeys[0]));
+	};
+
+	const mitentscheidOverviewEntries = $derived.by<MitentscheidOverviewEntry[]>(() => {
+		return buildMitentscheidOverviewEntries(validations, mitentscheidState);
 	});
 
 	const decidedMitentscheidEntries = $derived.by(() =>

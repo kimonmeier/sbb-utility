@@ -5,34 +5,45 @@ import { db } from '$lib/server/db';
 import { touren } from '$lib/server/db/schema';
 import { synchronizeTouren } from '$lib/server/sbb/tourenLogic';
 
-export const load: PageServerLoad = async ({ locals }) => {
-	if (!locals.user) {
+function requireUserOrRedirect(user: App.Locals['user']) {
+	if (!user) {
 		throw redirect(303, '/auth/login');
 	}
 
+	return user;
+}
+
+function toSyncErrorMessage(error: unknown): string {
+	if (error instanceof Error && error.message) {
+		return error.message;
+	}
+
+	return 'Synchronisation fehlgeschlagen.';
+}
+
+export const load: PageServerLoad = async ({ locals }) => {
+	const user = requireUserOrRedirect(locals.user);
+
 	const assignedTouren = await db.query.touren.findMany({
-		where: eq(touren.user, locals.user.id),
+		where: eq(touren.user, user.id),
 		orderBy: [asc(touren.datum), desc(touren.lastEdited)]
 	});
 
 	return {
-		user: locals.user,
+		user,
 		touren: assignedTouren
 	};
 };
 
 export const actions: Actions = {
 	sync: async ({ locals }) => {
-		if (!locals.user) {
-			throw redirect(303, '/auth/login');
-		}
+		const user = requireUserOrRedirect(locals.user);
 
 		try {
-			await synchronizeTouren(locals.user.id);
+			await synchronizeTouren(user.id);
 		} catch (error) {
-			const message = error instanceof Error ? error.message : 'Synchronisation fehlgeschlagen.';
 			return fail(500, {
-				error: message
+				error: toSyncErrorMessage(error)
 			});
 		}
 

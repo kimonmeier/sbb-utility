@@ -10,111 +10,51 @@ import {
 import { sbbClient, toUserFacingSbbError } from './sbb-client';
 import { SopreDepot, SopreTourType, type SopreMonthsRequest } from '../../types/SopreTypes';
 
+type PersistedTour = typeof touren.$inferSelect;
+type TourItem = ReturnType<typeof flattenTourItems>[number];
+
 export async function synchronizeTouren(userId: string) {
-	// This function can be called to trigger synchronization of touren data.
-	// You can implement the logic to fetch new touren data from the SBB API
-	// and update your database accordingly.
-
-	const token = await db.query.tokens.findFirst({
-		where: eq(tokens.userId, userId),
-		orderBy: [desc(tokens.expiresAt)]
-	});
-
-	if (token?.expiresAt && token.expiresAt.getTime() < Date.now()) {
-		// Token is invalid, proceed with synchronization
-		throw new Error('Token has expired. Please provide a valid token to synchronize touren.');
-	}
-
-	// Example: Fetch touren data for the current year
-	const currentYear = new Date().getFullYear();
-	const sbbToken = token?.token;
-
-	if (!sbbToken) {
-		throw new Error('No valid token found for user. Please provide a token to synchronize touren.');
-	}
-	let tourenData: SopreMonthsRequest;
-	try {
-		tourenData = await sbbClient.getYear(sbbToken, currentYear);
-	} catch (error) {
-		throw new Error(toUserFacingSbbError(error, 'Failed to fetch touren data from SBB API.'), {
-			cause: error
-		});
-	}
-
+	const sbbToken = await getValidUserTokenOrThrow(userId);
+	const tourenData = await fetchTourenYearDataOrThrow(sbbToken);
 	console.log('Fetched touren data from SBB API:', tourenData);
 
-	const sourceTourItems = flattenTourItems(tourenData);
-	const uniqueTourItemsByDay = new Map<number, (typeof sourceTourItems)[number]>();
-	for (const item of sourceTourItems) {
-		uniqueTourItemsByDay.set(Date.parse(item.date), item);
-	}
-
-	const uniqueTourItems = Array.from(uniqueTourItemsByDay.values());
-	if (uniqueTourItems.length === 0) {
+	const uniqueTourItemsByDay = buildUniqueTourItemsByDay(flattenTourItems(tourenData));
+	if (uniqueTourItemsByDay.size === 0) {
 		return;
 	}
 
-	const allDays = Array.from(uniqueTourItemsByDay.keys());
-	const existingTouren = await db.query.touren.findMany({
-		where: and(eq(touren.user, userId), inArray(touren.datum, allDays))
-	});
-	const existingTourenByDay = new Map(existingTouren.map((tour) => [tour.datum, tour]));
-
+	const existingTourenByDay = await fetchExistingTourenByDay(
+		userId,
+		Array.from(uniqueTourItemsByDay.keys())
+	);
 	const processedTouren = await processTourenData(
-		uniqueTourItems,
+		Array.from(uniqueTourItemsByDay.values()),
 		userId,
 		sbbToken,
 		existingTourenByDay
 	);
 
-	if (processedTouren.length === 0) {
-		return;
-	}
-
-	// Keep one entry per day. If the API sends duplicates for one day, the latest one wins.
-	const tourenByDay = new Map<number, SBBUtilityTouren>();
-	for (const tour of processedTouren) {
-		tourenByDay.set(tour.datum, tour);
-	}
-
-	const uniqueTouren = Array.from(tourenByDay.values());
-
-	const existingDays = new Set(existingTouren.map((tour) => tour.datum));
-	const toInsert = uniqueTouren.filter((tour) => !existingDays.has(tour.datum));
-	const toUpdate = uniqueTouren.filter((tour) => existingDays.has(tour.datum));
-
-	if (toInsert.length > 0) {
-		await db.insert(touren).values(toInsert);
-	}
-
-	if (toUpdate.length > 0) {
-		await Promise.all(
-			toUpdate.map((tour) =>
-				db
-					.update(touren)
-					.set({
-						abkuerzung: tour.abkuerzung,
-						tourNumber: tour.tourNumber,
-						depot: tour.depot,
-						lastEdited: tour.lastEdited,
-						startTime: tour.startTime,
-						endTime: tour.endTime,
-						aenderungKommentar: tour.aenderungKommentar,
-						tourSuffix: tour.tourSuffix,
-						schichtdauer: tour.schichtdauer,
-						arbeitszeit: tour.arbeitszeit,
-						bezahlteZeit: tour.bezahlteZeit,
-						bezahltePause: tour.bezahltePause
-					})
-					.where(and(eq(touren.user, userId), eq(touren.datum, tour.datum)))
-			)
-		);
+	if (processedTouren.length > 0) {
+		await upsertTourenForUser(userId, deduplicateTourenByDay(processedTouren), existingTourenByDay);
 	}
 
 	await synchronizeZeitkonten(userId, sbbToken);
 }
 
 const INTERESTING_ZEITKONTEN_IDS = new Set(['5', '9040', '9046', '9047']);
+const TOUR_TYPE_BY_CODE: Record<string, SopreTourType> = {
+	K: SopreTourType.KRANK,
+	RT: SopreTourType.RUHETAGE,
+	CT: SopreTourType.KOMPENSATIONSTAG,
+	RTV: SopreTourType.RUHETAG_VERLANGT,
+	RTT: SopreTourType.RUHETAG_TAUSCH,
+	CTV: SopreTourType.KOMPENSATIONSTAG_VERLANGT,
+	CTT: SopreTourType.KOMPENSATIONSTAG_TAUSCH,
+	RTP: SopreTourType.GUTHABEN_RUHETAG_PERSONAL,
+	CTP: SopreTourType.GUTHABEN_KOMPENSATIONSTAG_PERSONAL,
+	UUZ: SopreTourType.WOHNUNGSWECHSEL,
+	F: SopreTourType.FERIEN
+};
 
 async function synchronizeZeitkonten(userId: string, token: string) {
 	let zeitkontenData;
@@ -157,85 +97,257 @@ async function synchronizeZeitkonten(userId: string, token: string) {
 }
 
 async function processTourenData(
-	tourItems: ReturnType<typeof flattenTourItems>,
+	tourItems: TourItem[],
 	userId: string,
 	token: string,
-	existingTourenByDay: Map<number, typeof touren.$inferSelect>
+	existingTourenByDay: Map<number, PersistedTour>
 ): Promise<SBBUtilityTouren[]> {
 	return Promise.all(
 		tourItems.map(async (item) => {
-			const tour: SBBUtilityTouren = {
-				id: crypto.randomUUID(),
-				datum: Date.parse(item.date),
-				user: userId,
-				abkuerzung: SopreTourType.UNBEKANNT
-			};
+			const tour = createBaseTour(item, userId);
 			const existingTour = existingTourenByDay.get(tour.datum);
 
 			if (item.dayOff) {
 				tour.abkuerzung = parseTourType(item.abkuerzung!);
-			} else {
-				if (item.tournummer) {
-					const endTime = new Date(Date.parse(`${item.date} ${item.tourEndzeit}`));
-					if (item.tourEndsNextDay) {
-						endTime.setDate(endTime.getDate() + 1);
-					}
-
-					tour.tourNumber = parseInt(item.tournummer);
-					tour.startTime = new Date(Date.parse(`${item.date} ${item.tourStartzeit}`));
-					tour.endTime = endTime;
-					tour.depot = parseStandort(item.startStandort);
-					tour.tourSuffix = item.tourSuffix;
-
-					if (existingTour && isSameBaseTour(existingTour, tour)) {
-						copyPersistedDetailFields(existingTour, tour);
-						return tour;
-					}
-
-					let tourDetail = null;
-					if (item.mitarbeiterTourId) {
-						try {
-							tourDetail = await sbbClient.getTourDetail(token, item.mitarbeiterTourId);
-						} catch (error) {
-							console.warn(
-								`Skipping tour detail fetch for mitarbeiterTourId ${item.mitarbeiterTourId}:`,
-								toUserFacingSbbError(error, 'Failed to fetch tour detail from SBB API.')
-							);
-						}
-					}
-
-					if (tourDetail?.tourdetailDTO) {
-						tour.schichtdauer = parseDurationToMinutes(tourDetail.tourdetailDTO.schichtdauer);
-						tour.arbeitszeit = parseDurationToMinutes(tourDetail.tourdetailDTO.arbeitszeit);
-						tour.bezahlteZeit = parseDurationToMinutes(tourDetail.tourdetailDTO.bezahlteZeit);
-						tour.bezahltePause = parseDurationToMinutes(tourDetail.tourdetailDTO.bezahltePause);
-					}
-
-					if (tourDetail?.zuteilungsbemerkung) {
-						tour.aenderungKommentar = tourDetail.zuteilungsbemerkung;
-					}
-				} else {
-					if (item.reservetypBeschreibung) {
-						tour.abkuerzung = SopreTourType.RESERVE;
-					}
-
-					if (item.schichtlage) {
-						if (item.schichtlage.includes('FRUEH')) {
-							tour.abkuerzung = SopreTourType.RESERVE_FRÜH;
-						} else if (item.schichtlage.includes('SPAET')) {
-							tour.abkuerzung = SopreTourType.RESERVE_SPÄT;
-						}
-					}
-
-					if (item.lastEdit) {
-						tour.lastEdited = new Date(Date.parse(item.lastEdit));
-					}
-				}
+				return tour;
 			}
+
+			if (!item.tournummer) {
+				applyReserveFields(item, tour);
+				return tour;
+			}
+
+			applyPlannedTourFields(item, tour);
+
+			if (existingTour && isSameBaseTour(existingTour, tour)) {
+				copyPersistedDetailFields(existingTour, tour);
+				return tour;
+			}
+
+			const tourDetail = await fetchTourDetailSafely(token, item.mitarbeiterTourId);
+			applyTourDetailFields(tour, tourDetail);
 
 			return tour;
 		})
 	);
+}
+
+async function getValidUserTokenOrThrow(userId: string): Promise<string> {
+	const token = await db.query.tokens.findFirst({
+		where: eq(tokens.userId, userId),
+		orderBy: [desc(tokens.expiresAt)]
+	});
+
+	if (!token?.token) {
+		throw new Error('No valid token found for user. Please provide a token to synchronize touren.');
+	}
+
+	if (token.expiresAt && token.expiresAt.getTime() < Date.now()) {
+		throw new Error('Token has expired. Please provide a valid token to synchronize touren.');
+	}
+
+	return token.token;
+}
+
+async function fetchTourenYearDataOrThrow(token: string): Promise<SopreMonthsRequest> {
+	const currentYear = new Date().getFullYear();
+
+	try {
+		return await sbbClient.getYear(token, currentYear);
+	} catch (error) {
+		throw new Error(toUserFacingSbbError(error, 'Failed to fetch touren data from SBB API.'), {
+			cause: error
+		});
+	}
+}
+
+function buildUniqueTourItemsByDay(items: TourItem[]): Map<number, TourItem> {
+	if (items.length === 0) {
+		return new Map();
+	}
+
+	const tourItemByDay = new Map<number, TourItem[]>();
+	for (const item of items) {
+		const day = Date.parse(item.date);
+		if (!tourItemByDay.has(day)) {
+			tourItemByDay.set(day, []);
+		}
+		tourItemByDay.get(day)!.push(item);
+	}
+
+	const uniqueTourItemByDay = new Map<number, TourItem>();
+	for (const [day, items] of tourItemByDay.entries()) {
+		uniqueTourItemByDay.set(day, chooseTourItemForDay(items));
+	}
+
+	return uniqueTourItemByDay;
+}
+
+function chooseTourItemForDay(items: TourItem[]): TourItem {
+	if (items.length === 1) {
+		return items[0];
+	}
+
+	// Find the Ferien item only if all items have an abkuerzung and there's at least one Ferien and one Ruhetag or Kompensationstag
+	if (
+		items.every((x) => x.abkuerzung) &&
+		items.find((x) => TOUR_TYPE_BY_CODE[x.abkuerzung!] === SopreTourType.FERIEN) &&
+		(items.find((x) => TOUR_TYPE_BY_CODE[x.abkuerzung!] == SopreTourType.RUHETAGE) ||
+			items.find((x) => TOUR_TYPE_BY_CODE[x.abkuerzung!] === SopreTourType.KOMPENSATIONSTAG))
+	) {
+		return items.find((x) => TOUR_TYPE_BY_CODE[x.abkuerzung!] === SopreTourType.FERIEN)!;
+	}
+
+	if (
+		items.find((x) => !x.abkuerzung) &&
+		items.find(
+			(x) => x.abkuerzung === 'Res F' || x.abkuerzung === 'Res S' || x.abkuerzung === 'Res'
+		)
+	) {
+		return items.find((x) => !x.abkuerzung)!;
+	}
+
+	if (items.find((x) => x.dayOff) && items.find((x) => !x.dayOff)) {
+		return items.find((x) => !x.dayOff)!;
+	}
+
+	return items[0];
+}
+
+async function fetchExistingTourenByDay(
+	userId: string,
+	days: number[]
+): Promise<Map<number, PersistedTour>> {
+	if (days.length === 0) {
+		return new Map();
+	}
+
+	const existingTouren = await db.query.touren.findMany({
+		where: and(eq(touren.user, userId), inArray(touren.datum, days))
+	});
+
+	return new Map(existingTouren.map((row) => [row.datum, row]));
+}
+
+function deduplicateTourenByDay(tours: SBBUtilityTouren[]): SBBUtilityTouren[] {
+	const tourenByDay = new Map<number, SBBUtilityTouren>();
+	for (const row of tours) {
+		tourenByDay.set(row.datum, row);
+	}
+
+	return Array.from(tourenByDay.values());
+}
+
+async function upsertTourenForUser(
+	userId: string,
+	processedTouren: SBBUtilityTouren[],
+	existingTourenByDay: Map<number, PersistedTour>
+) {
+	const existingDays = new Set(existingTourenByDay.keys());
+	const toInsert = processedTouren.filter((row) => !existingDays.has(row.datum));
+	const toUpdate = processedTouren.filter((row) => existingDays.has(row.datum));
+
+	if (toInsert.length > 0) {
+		await db.insert(touren).values(toInsert);
+	}
+
+	if (toUpdate.length > 0) {
+		await Promise.all(toUpdate.map((row) => updateTourForDay(userId, row)));
+	}
+}
+
+async function updateTourForDay(userId: string, row: SBBUtilityTouren) {
+	await db
+		.update(touren)
+		.set(buildTourUpdatePayload(row))
+		.where(and(eq(touren.user, userId), eq(touren.datum, row.datum)));
+}
+
+function buildTourUpdatePayload(row: SBBUtilityTouren) {
+	return {
+		abkuerzung: row.abkuerzung,
+		tourNumber: row.tourNumber,
+		depot: row.depot,
+		lastEdited: row.lastEdited,
+		startTime: row.startTime,
+		endTime: row.endTime,
+		aenderungKommentar: row.aenderungKommentar,
+		tourSuffix: row.tourSuffix,
+		schichtdauer: row.schichtdauer,
+		arbeitszeit: row.arbeitszeit,
+		bezahlteZeit: row.bezahlteZeit,
+		bezahltePause: row.bezahltePause
+	};
+}
+
+function createBaseTour(item: TourItem, userId: string): SBBUtilityTouren {
+	return {
+		id: crypto.randomUUID(),
+		datum: Date.parse(item.date),
+		user: userId,
+		abkuerzung: SopreTourType.UNBEKANNT
+	};
+}
+
+function applyReserveFields(item: TourItem, tour: SBBUtilityTouren): void {
+	if (item.reservetypBeschreibung) {
+		tour.abkuerzung = SopreTourType.RESERVE;
+	}
+
+	if (item.schichtlage?.includes('FRUEH')) {
+		tour.abkuerzung = SopreTourType.RESERVE_FRÜH;
+	} else if (item.schichtlage?.includes('SPAET')) {
+		tour.abkuerzung = SopreTourType.RESERVE_SPÄT;
+	}
+
+	if (item.lastEdit) {
+		tour.lastEdited = new Date(Date.parse(item.lastEdit));
+	}
+}
+
+function applyPlannedTourFields(item: TourItem, tour: SBBUtilityTouren): void {
+	const endTime = new Date(Date.parse(`${item.date} ${item.tourEndzeit}`));
+	if (item.tourEndsNextDay) {
+		endTime.setDate(endTime.getDate() + 1);
+	}
+
+	tour.tourNumber = parseInt(item.tournummer!, 10);
+	tour.startTime = new Date(Date.parse(`${item.date} ${item.tourStartzeit}`));
+	tour.endTime = endTime;
+	tour.depot = parseStandort(item.startStandort);
+	tour.tourSuffix = item.tourSuffix;
+}
+
+async function fetchTourDetailSafely(token: string, mitarbeiterTourId?: number | null) {
+	if (!mitarbeiterTourId) {
+		return null;
+	}
+
+	try {
+		return await sbbClient.getTourDetail(token, mitarbeiterTourId);
+	} catch (error) {
+		console.warn(
+			`Skipping tour detail fetch for mitarbeiterTourId ${mitarbeiterTourId}:`,
+			toUserFacingSbbError(error, 'Failed to fetch tour detail from SBB API.')
+		);
+		return null;
+	}
+}
+
+function applyTourDetailFields(
+	tour: SBBUtilityTouren,
+	tourDetail: Awaited<ReturnType<typeof fetchTourDetailSafely>>
+) {
+	if (tourDetail?.tourdetailDTO) {
+		tour.schichtdauer = parseDurationToMinutes(tourDetail.tourdetailDTO.schichtdauer);
+		tour.arbeitszeit = parseDurationToMinutes(tourDetail.tourdetailDTO.arbeitszeit);
+		tour.bezahlteZeit = parseDurationToMinutes(tourDetail.tourdetailDTO.bezahlteZeit);
+		tour.bezahltePause = parseDurationToMinutes(tourDetail.tourdetailDTO.bezahltePause);
+	}
+
+	if (tourDetail?.zuteilungsbemerkung) {
+		tour.aenderungKommentar = tourDetail.zuteilungsbemerkung;
+	}
 }
 
 function flattenTourItems(tourenData: SopreMonthsRequest) {
@@ -245,11 +357,7 @@ function flattenTourItems(tourenData: SopreMonthsRequest) {
 }
 
 function toTimestamp(value: Date | null | undefined): number | null {
-	if (!value) {
-		return null;
-	}
-
-	return value.getTime();
+	return value ? value.getTime() : null;
 }
 
 function isSameBaseTour(existingTour: typeof touren.$inferSelect, nextTour: SBBUtilityTouren) {
@@ -276,46 +384,19 @@ function copyPersistedDetailFields(
 }
 
 function parseStandort(standort: string | undefined): SopreDepot {
-	if (!standort) {
-		return SopreDepot.UNBEKANNT;
-	}
-
 	if (standort === 'OL') {
 		return SopreDepot.OLTEN;
 	}
+
 	return SopreDepot.UNBEKANNT;
 }
 
 function parseTourType(abkuerzung: string): SopreTourType {
-	if (abkuerzung == 'K') {
-		return SopreTourType.KRANK;
-	} else if (abkuerzung == 'RT') {
-		return SopreTourType.RUHETAGE;
-	} else if (abkuerzung == 'CT') {
-		return SopreTourType.KOMPENSATIONSTAG;
-	} else if (abkuerzung == 'RTV') {
-		return SopreTourType.RUHETAG_VERLANGT;
-	} else if (abkuerzung == 'RTT') {
-		return SopreTourType.RUHETAG_TAUSCH;
-	} else if (abkuerzung == 'CTV') {
-		return SopreTourType.KOMPENSATIONSTAG_VERLANGT;
-	} else if (abkuerzung == 'CTT') {
-		return SopreTourType.KOMPENSATIONSTAG_TAUSCH;
-	} else if (abkuerzung == 'RTP') {
-		return SopreTourType.GUTHABEN_RUHETAG_PERSONAL;
-	} else if (abkuerzung == 'F') {
-		return SopreTourType.FERIEN;
-	} else {
-		return SopreTourType.UNBEKANNT;
-	}
+	return TOUR_TYPE_BY_CODE[abkuerzung] ?? SopreTourType.UNBEKANNT;
 }
 
 function parseDurationToMinutes(value?: string | null): number | undefined {
-	if (!value) {
-		return undefined;
-	}
-
-	const trimmed = value.trim();
+	const trimmed = value?.trim();
 	if (!trimmed) {
 		return undefined;
 	}
