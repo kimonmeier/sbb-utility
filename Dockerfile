@@ -17,7 +17,11 @@ RUN corepack enable
 COPY --from=deps /app/node_modules ./node_modules
 COPY package.json yarn.lock ./
 
+ARG BETTER_AUTH_SECRET=build-only-secret
+ARG ORIGIN=http://localhost:3000
 ENV DATABASE_URL=database.db
+ENV BETTER_AUTH_SECRET=$BETTER_AUTH_SECRET
+ENV ORIGIN=$ORIGIN
 
 # Build the SvelteKit app (adapter-node).
 COPY . .
