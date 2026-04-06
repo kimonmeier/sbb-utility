@@ -43,7 +43,29 @@ export async function synchronizeTouren(userId: string) {
 
 	console.log('Fetched touren data from SBB API:', tourenData);
 
-	const processedTouren = await processTourenData(tourenData, userId, sbbToken);
+	const sourceTourItems = flattenTourItems(tourenData);
+	const uniqueTourItemsByDay = new Map<number, (typeof sourceTourItems)[number]>();
+	for (const item of sourceTourItems) {
+		uniqueTourItemsByDay.set(Date.parse(item.date), item);
+	}
+
+	const uniqueTourItems = Array.from(uniqueTourItemsByDay.values());
+	if (uniqueTourItems.length === 0) {
+		return;
+	}
+
+	const allDays = Array.from(uniqueTourItemsByDay.keys());
+	const existingTouren = await db.query.touren.findMany({
+		where: and(eq(touren.user, userId), inArray(touren.datum, allDays))
+	});
+	const existingTourenByDay = new Map(existingTouren.map((tour) => [tour.datum, tour]));
+
+	const processedTouren = await processTourenData(
+		uniqueTourItems,
+		userId,
+		sbbToken,
+		existingTourenByDay
+	);
 
 	if (processedTouren.length === 0) {
 		return;
@@ -56,11 +78,6 @@ export async function synchronizeTouren(userId: string) {
 	}
 
 	const uniqueTouren = Array.from(tourenByDay.values());
-	const allDays = uniqueTouren.map((tour) => tour.datum);
-
-	const existingTouren = await db.query.touren.findMany({
-		where: and(eq(touren.user, userId), inArray(touren.datum, allDays))
-	});
 
 	const existingDays = new Set(existingTouren.map((tour) => tour.datum));
 	const toInsert = uniqueTouren.filter((tour) => !existingDays.has(tour.datum));
@@ -140,27 +157,41 @@ async function synchronizeZeitkonten(userId: string, token: string) {
 }
 
 async function processTourenData(
-	tourenData: SopreMonthsRequest,
+	tourItems: ReturnType<typeof flattenTourItems>,
 	userId: string,
-	token: string
+	token: string,
+	existingTourenByDay: Map<number, typeof touren.$inferSelect>
 ): Promise<SBBUtilityTouren[]> {
-	const touren = tourenData.flatMap((month) =>
-		month.weekDTOs.flatMap((week) => week.dayDTOs.flatMap((day) => day.dayItemDTOs || []))
-	);
-
 	return Promise.all(
-		touren.map(async (item) => {
+		tourItems.map(async (item) => {
 			const tour: SBBUtilityTouren = {
 				id: crypto.randomUUID(),
 				datum: Date.parse(item.date),
 				user: userId,
 				abkuerzung: SopreTourType.UNBEKANNT
 			};
+			const existingTour = existingTourenByDay.get(tour.datum);
 
 			if (item.dayOff) {
 				tour.abkuerzung = parseTourType(item.abkuerzung!);
 			} else {
 				if (item.tournummer) {
+					const endTime = new Date(Date.parse(`${item.date} ${item.tourEndzeit}`));
+					if (item.tourEndsNextDay) {
+						endTime.setDate(endTime.getDate() + 1);
+					}
+
+					tour.tourNumber = parseInt(item.tournummer);
+					tour.startTime = new Date(Date.parse(`${item.date} ${item.tourStartzeit}`));
+					tour.endTime = endTime;
+					tour.depot = parseStandort(item.startStandort);
+					tour.tourSuffix = item.tourSuffix;
+
+					if (existingTour && isSameBaseTour(existingTour, tour)) {
+						copyPersistedDetailFields(existingTour, tour);
+						return tour;
+					}
+
 					let tourDetail = null;
 					if (item.mitarbeiterTourId) {
 						try {
@@ -183,17 +214,6 @@ async function processTourenData(
 					if (tourDetail?.zuteilungsbemerkung) {
 						tour.aenderungKommentar = tourDetail.zuteilungsbemerkung;
 					}
-
-					const endTime = new Date(Date.parse(`${item.date} ${item.tourEndzeit}`));
-					if (item.tourEndsNextDay) {
-						endTime.setDate(endTime.getDate() + 1);
-					}
-
-					tour.tourNumber = parseInt(item.tournummer);
-					tour.startTime = new Date(Date.parse(`${item.date} ${item.tourStartzeit}`));
-					tour.endTime = endTime;
-					tour.depot = parseStandort(item.startStandort);
-					tour.tourSuffix = item.tourSuffix;
 				} else {
 					if (item.reservetypBeschreibung) {
 						tour.abkuerzung = SopreTourType.RESERVE;
@@ -216,6 +236,43 @@ async function processTourenData(
 			return tour;
 		})
 	);
+}
+
+function flattenTourItems(tourenData: SopreMonthsRequest) {
+	return tourenData.flatMap((month) =>
+		month.weekDTOs.flatMap((week) => week.dayDTOs.flatMap((day) => day.dayItemDTOs || []))
+	);
+}
+
+function toTimestamp(value: Date | null | undefined): number | null {
+	if (!value) {
+		return null;
+	}
+
+	return value.getTime();
+}
+
+function isSameBaseTour(existingTour: typeof touren.$inferSelect, nextTour: SBBUtilityTouren) {
+	return (
+		existingTour.abkuerzung === nextTour.abkuerzung &&
+		existingTour.tourNumber === nextTour.tourNumber &&
+		existingTour.tourSuffix === nextTour.tourSuffix &&
+		existingTour.depot === nextTour.depot &&
+		toTimestamp(existingTour.startTime) === toTimestamp(nextTour.startTime) &&
+		toTimestamp(existingTour.endTime) === toTimestamp(nextTour.endTime) &&
+		toTimestamp(existingTour.lastEdited) === toTimestamp(nextTour.lastEdited)
+	);
+}
+
+function copyPersistedDetailFields(
+	existingTour: typeof touren.$inferSelect,
+	nextTour: SBBUtilityTouren
+) {
+	nextTour.schichtdauer = existingTour.schichtdauer ?? undefined;
+	nextTour.arbeitszeit = existingTour.arbeitszeit ?? undefined;
+	nextTour.bezahlteZeit = existingTour.bezahlteZeit ?? undefined;
+	nextTour.bezahltePause = existingTour.bezahltePause ?? undefined;
+	nextTour.aenderungKommentar = existingTour.aenderungKommentar ?? undefined;
 }
 
 function parseStandort(standort: string | undefined): SopreDepot {
