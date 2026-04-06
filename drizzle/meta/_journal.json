@@ -1,0 +1,41 @@
+{
+  "version": "7",
+  "dialect": "sqlite",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "6",
+      "when": 1775423552653,
+      "tag": "0000_rapid_retro_girl",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1775427537276,
+      "tag": "0001_icy_katie_power",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1775444090334,
+      "tag": "0002_medical_kulan_gath",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "6",
+      "when": 1775444112668,
+      "tag": "0003_fuzzy_pixie",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1775446821239,
+      "tag": "0004_legal_wallflower",
+      "breakpoints": true
+    }
+  ]
+}

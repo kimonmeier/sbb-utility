@@ -1,0 +1,1 @@
+ALTER TABLE `assigned_touren` ADD `aenderung_kommentar` text;

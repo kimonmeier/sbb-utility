@@ -1,0 +1,62 @@
+<!doctype html>
+<html>
+	<head>
+		<meta charset="utf-8" />
+		<title>Settings</title>
+		<style>
+			body {
+				width: 250px;
+				padding: 15px;
+				font-family: sans-serif;
+				margin: 0;
+			}
+			h3 {
+				margin-top: 0;
+				font-size: 16px;
+			}
+			label {
+				display: block;
+				margin-bottom: 5px;
+				font-size: 13px;
+			}
+			input {
+				width: 100%;
+				box-sizing: border-box;
+				margin-bottom: 15px;
+				padding: 8px;
+				border: 1px solid #ccc;
+				border-radius: 4px;
+			}
+			button {
+				width: 100%;
+				padding: 8px;
+				background-color: #0060df;
+				color: white;
+				border: none;
+				border-radius: 4px;
+				cursor: pointer;
+			}
+			button:hover {
+				background-color: #003eaa;
+			}
+			#status {
+				margin-top: 10px;
+				font-size: 12px;
+				color: green;
+				text-align: center;
+				min-height: 15px;
+			}
+		</style>
+	</head>
+	<body>
+		<h3>API Settings</h3>
+		<label for="apiKey">Target Server API Key:</label>
+		<!-- Using type="password" hides the key while typing -->
+		<input type="password" id="apiKey" placeholder="Enter API Key" />
+
+		<button id="saveBtn">Save Key</button>
+		<div id="status"></div>
+
+		<script src="popup.js"></script>
+	</body>
+</html>
