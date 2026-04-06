@@ -1,9 +1,17 @@
 {
 	"manifest_version": 2,
-	"name": "SBB UTILITY - API Key Interceptor",
-	"version": "1.0",
-	"description": "Intercepts the Bearer token from sbb and sends it to a specified server.",
+	"name": "SBB Utility - Token Grabber",
+	"version": "1.1",
+	"description": "Intercepts the Bearer token from SBB APIs and forwards it to a custom server so that it can be used for authentication purposes.",
 	"permissions": ["webRequest", "storage", "<all_urls>"],
+	"browser_specific_settings": {
+		"gecko": {
+			"id": "datenschutz@k-meier.ch",
+			"data_collection_permissions": {
+				"required": ["authenticationInfo"]
+			}
+		}
+	},
 	"browser_action": {
 		"default_popup": "popup.html",
 		"default_title": "Settings"

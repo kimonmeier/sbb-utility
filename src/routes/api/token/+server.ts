@@ -74,7 +74,7 @@ export const POST: RequestHandler = async ({ request }) => {
 
 	try {
 		const body = await request.json();
-		const token = String(body.token ?? '').trim();
+		const token = (body.token ?? '').trim();
 
 		if (!token) {
 			return json({ error: 'JWT token is required.' }, { status: 400 });

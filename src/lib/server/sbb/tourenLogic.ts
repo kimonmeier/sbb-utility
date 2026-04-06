@@ -32,7 +32,6 @@ export async function synchronizeTouren(userId: string) {
 	if (!sbbToken) {
 		throw new Error('No valid token found for user. Please provide a token to synchronize touren.');
 	}
-
 	const tourenData = await sbbClient.getYear(sbbToken, currentYear);
 
 	console.log('Fetched touren data from SBB API:', tourenData);

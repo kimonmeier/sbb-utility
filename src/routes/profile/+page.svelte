@@ -281,7 +281,7 @@
 				{/if}
 
 				<form onsubmit={handleAddApiKey} class="mt-2 flex items-end gap-2">
-					<fieldset class="fieldset flex-grow">
+					<fieldset class="fieldset grow">
 						<legend class="fieldset-legend">{m.profile_new_api_key_name()}</legend>
 						<input
 							type="text"
