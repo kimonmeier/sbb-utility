@@ -22,7 +22,9 @@
 	} = $props();
 </script>
 
-<div class="mb-6 flex flex-wrap gap-2">
+<div
+	class="sticky top-16 z-10 mb-6 flex flex-wrap gap-2 rounded-3xl border-b border-base-300 bg-base-100 px-4 py-2 shadow-sm"
+>
 	{#each calendarMonths as month (month.id)}
 		<a class="btn btn-outline btn-sm" href={`#${month.id}`}>{month.label}</a>
 	{/each}
