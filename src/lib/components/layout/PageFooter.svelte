@@ -2,7 +2,7 @@
 	import { m } from '$lib/paraglide/messages.js';
 </script>
 
-<div class="h-20 w-full rounded-t-lg bg-base-200 p-4">
+<div class="sticky bottom-0 z-1 h-20 w-full rounded-t-lg bg-base-200 p-4 shadow">
 	<div class="flex h-full flex-row items-center justify-between">
 		<div class="flex flex-col items-center gap-4">
 			<p class="text-sm">{m.footer_copyright()}</p>
