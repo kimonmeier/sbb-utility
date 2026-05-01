@@ -1,0 +1,77 @@
+import type { VehicleType, WagonBrakeWeights, WagonDefinition } from '$lib/types/BremsrechnerTypes';
+
+const IC2000_BaseDefinition = {
+	type: 'BT' as VehicleType,
+	maxSpeed: 200,
+	brakeWeights: {
+		rMg: 111,
+		rEp: 91,
+		rSbRed: 86,
+		rBlack: 81,
+		ric: 65
+	} as WagonBrakeWeights,
+	lengthOverBuffers: 26.8,
+	selfWeight: 47,
+	totalWeight: 60,
+	handbrakeForce: 0,
+	hasElectricBrakeController: true
+};
+
+const IC2000_A: WagonDefinition = {
+	...IC2000_BaseDefinition,
+	class: 'A',
+	uicNumberStart: '508516-94000',
+	uicNumberEnd: '508516-94079'
+};
+
+const IC2000_AS: WagonDefinition = {
+	...IC2000_BaseDefinition,
+	class: 'AS',
+	uicNumberStart: '508516-94154',
+	uicNumberEnd: '508516-94185'
+};
+
+const IC2000_B: WagonDefinition = {
+	...IC2000_BaseDefinition,
+	class: 'B',
+	uicNumberStart: '508526-94000',
+	uicNumberEnd: '508526-94148'
+};
+
+const IC2000_BT: WagonDefinition = {
+	...IC2000_BaseDefinition,
+	class: 'BT',
+	uicNumberStart: '508526-94900',
+	uicNumberEnd: '508526-94939'
+};
+
+const IC2000_AD: WagonDefinition = {
+	...IC2000_BaseDefinition,
+	class: 'AD',
+	uicNumberStart: '508586-94000',
+	uicNumberEnd: '508586-94039'
+};
+
+const IC2000_BR: WagonDefinition = {
+	...IC2000_BaseDefinition,
+	class: 'BR',
+	uicNumberStart: '508566-94016',
+	uicNumberEnd: '508566-94025'
+};
+
+const IC2000_WRB: WagonDefinition = {
+	...IC2000_BaseDefinition,
+	class: 'WRB',
+	uicNumberStart: '508588-94000',
+	uicNumberEnd: '508588-94015'
+};
+
+export const IC2000_WAGONS: WagonDefinition[] = [
+	IC2000_A,
+	IC2000_AS,
+	IC2000_B,
+	IC2000_BT,
+	IC2000_AD,
+	IC2000_BR,
+	IC2000_WRB
+];
