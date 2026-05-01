@@ -15,9 +15,9 @@ export type VehicleClass =
 
 export interface WagonBrakeWeights {
 	rMg: number;
-	rEp: number;
-	rSbRed?: number;
-	rBlack?: number;
+	rEp?: number;
+	rSbRed: number;
+	rBlack: number;
 	ric: number;
 }
 
