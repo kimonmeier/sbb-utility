@@ -125,6 +125,7 @@
 	"nav_logout": "Logout",
 	"nav_login": "Login",
 	"nav_register": "Registrieren",
+	"nav_bremsrechner": "Bremsrechner",
 	"touren_title": "Meine Touren",
 	"touren_meta_description": "Uebersicht aller Touren, die dem eingeloggten Benutzer zugeteilt sind.",
 	"touren_heading": "Meine Touren",

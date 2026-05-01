@@ -125,6 +125,7 @@
 	"nav_logout": "Logout",
 	"nav_login": "Login",
 	"nav_register": "Register",
+	"nav_bremsrechner": "Brake-Calculations",
 	"touren_title": "My tours",
 	"touren_meta_description": "Overview of all tours assigned to the logged-in user.",
 	"touren_heading": "My tours",

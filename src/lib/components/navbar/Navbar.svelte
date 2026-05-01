@@ -35,6 +35,7 @@
 				class="dropdown-content menu z-1 mt-3 w-52 menu-sm rounded-box bg-base-200 p-2 shadow"
 			>
 				<li><a href={resolve('/')} data-sveltekit-preload-data>{m.nav_home()}</a></li>
+				<li><a href={resolve('/bremsrechner')} data-sveltekit-preload-data>{m.nav_bremsrechner()}</a></li>
 				<li><a href={resolve('/touren')} data-sveltekit-preload-data>{m.nav_touren()}</a></li>
 				<li>
 					<a href={resolve('/arbeitszeit')} data-sveltekit-preload-data>{m.nav_arbeitszeit()}</a>
