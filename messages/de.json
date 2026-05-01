@@ -206,5 +206,7 @@
 	"profile_create_api_key": "API Key erstellen",
 	"profile_no_api_keys": "Noch keine API Keys registriert.",
 	"profile_unnamed_api_key": "Unbenannter API Key",
-	"profile_created_at": "Erstellt {date}"
+	"profile_created_at": "Erstellt {date}",
+	"bremsrechner_title": "Bremsrechner",
+	"bremsrechner_meta_description": "Berechnet die Bremszeit basierend auf der Arbeitszeit, Schichtdauer und bezahlten Pausen einer Tour."
 }
