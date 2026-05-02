@@ -48,6 +48,8 @@ export interface LocomotiveDefinition extends BaseVehicleDefinition {
 	schleppedBrakeWeight: number;
 }
 
+export type VehicleStates = LocomotiveVehicleState | WagonVehicleState;
+
 interface VehicleState {
 	stateType: VehicleType;
 	definition: BaseVehicleDefinition;
@@ -70,7 +72,7 @@ export interface LocomotiveVehicleState extends VehicleState {
 }
 
 export interface TrainComposition {
-	vehicles: VehicleState[];
+	vehicles: VehicleStates[];
 	totalLength: number;
 	totalWeight: number;
 	totalEffectiveBrakeWeight: number;
