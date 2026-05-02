@@ -1,12 +1,13 @@
-import type {
+import {
+	VehicleClass,
 	VehicleType,
-	WagonBrakeWeights,
-	WagonDefinition,
-	WagonType
+	type WagonBrakeWeights,
+	type WagonDefinition,
+	type WagonType
 } from '$lib/types/BremsrechnerTypes';
 
 const EW4_BaseDefinition = {
-	type: 'WAGON' as VehicleType,
+	type: VehicleType.Wagon,
 	wagonType: 'EW4' as WagonType,
 	lengthOverBuffers: 26.4,
 	maxSpeed: 200,
@@ -26,7 +27,7 @@ const EW4_BRAKE_WEIGHTS: WagonBrakeWeights = {
 export const EW4_A_200: WagonDefinition = {
 	...EW4_BaseDefinition,
 	brakeWeights: EW4_BRAKE_WEIGHTS,
-	class: 'A',
+	class: VehicleClass.A,
 	hasElectricBrakeController: false,
 	uicNumberStart: '508510-95000',
 	uicNumberEnd: '508510-95219'
@@ -35,7 +36,7 @@ export const EW4_A_200: WagonDefinition = {
 export const EW4_A_160: WagonDefinition = {
 	...EW4_BaseDefinition,
 	brakeWeights: EW4_BRAKE_WEIGHTS,
-	class: 'A',
+	class: VehicleClass.A,
 	hasElectricBrakeController: false,
 	uicNumberStart: '508510-75021',
 	uicNumberEnd: '508510-75203',
@@ -45,7 +46,7 @@ export const EW4_A_160: WagonDefinition = {
 export const EW4_B_160: WagonDefinition = {
 	...EW4_BaseDefinition,
 	brakeWeights: EW4_BRAKE_WEIGHTS,
-	class: 'B',
+	class: VehicleClass.B,
 	hasElectricBrakeController: false,
 	uicNumberStart: '508521-75004',
 	uicNumberEnd: '508521-75259',
@@ -55,7 +56,7 @@ export const EW4_B_160: WagonDefinition = {
 export const EW4_B_200_1: WagonDefinition = {
 	...EW4_BaseDefinition,
 	brakeWeights: EW4_BRAKE_WEIGHTS,
-	class: 'B',
+	class: VehicleClass.B,
 	hasElectricBrakeController: false,
 	uicNumberStart: '508520-95601',
 	uicNumberEnd: '508520-95639',
@@ -65,7 +66,7 @@ export const EW4_B_200_1: WagonDefinition = {
 export const EW4_B_200_2: WagonDefinition = {
 	...EW4_BaseDefinition,
 	brakeWeights: EW4_BRAKE_WEIGHTS,
-	class: 'B',
+	class: VehicleClass.B,
 	hasElectricBrakeController: false,
 	uicNumberStart: '508521-95000',
 	uicNumberEnd: '508521-95292',
@@ -75,7 +76,7 @@ export const EW4_B_200_2: WagonDefinition = {
 export const EW4_B_200_FANZUEGE: WagonDefinition = {
 	...EW4_BaseDefinition,
 	brakeWeights: EW4_BRAKE_WEIGHTS,
-	class: 'B',
+	class: VehicleClass.B,
 	hasElectricBrakeController: false,
 	uicNumberStart: '508521-95312',
 	uicNumberEnd: '508521-95335',
@@ -83,8 +84,8 @@ export const EW4_B_200_FANZUEGE: WagonDefinition = {
 };
 
 export const EW4_BT_BASE: WagonDefinition = {
-	type: 'wagon' as VehicleType,
-	class: 'BT',
+	type: VehicleType.Wagon,
+	class: VehicleClass.BT,
 	wagonType: 'EW4' as WagonType,
 	brakeWeights: {
 		rMg: 102,
@@ -105,8 +106,8 @@ export const EW4_BT_BASE: WagonDefinition = {
 };
 
 export const EW4_BT_MODERN: WagonDefinition = {
-	type: 'wagon' as VehicleType,
-	class: 'BT',
+	type: VehicleType.Wagon,
+	class: VehicleClass.BT,
 	wagonType: 'EW4' as WagonType,
 	brakeWeights: {
 		rMg: 106,

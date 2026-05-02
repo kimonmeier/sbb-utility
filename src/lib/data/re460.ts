@@ -1,7 +1,7 @@
-import type { LocomotiveDefinition } from '$lib/types/BremsrechnerTypes';
+import { VehicleType, type LocomotiveDefinition } from '$lib/types/BremsrechnerTypes';
 
 export const Re460: LocomotiveDefinition = {
-	type: 'locomotive',
+	type: VehicleType.Locomotive,
 	locomotiveType: 'Re460',
 	uicNumberStart: '91854460000',
 	uicNumberEnd: '91854460118',

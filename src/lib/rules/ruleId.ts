@@ -1,4 +1,7 @@
 export enum RuleId {
 	SetMaxSpeedToMinVehicleMaxSpeed,
-	TrainIsLokzug
+	TrainIsLokzug,
+	PendelzuegeVmax125,
+	PendelzuegeVmax160,
+	PendelzuegeVmax200
 }

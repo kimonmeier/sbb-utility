@@ -1,19 +1,23 @@
 import type { RuleId } from '$lib/rules/ruleId';
 
-export type VehicleType = 'wagon' | 'locomotive';
-export type VehicleClass =
-	| 'A'
-	| 'ABT'
-	| 'AD'
-	| 'AS'
-	| 'APM'
-	| 'B'
-	| 'BT'
-	| 'BR'
-	| 'BPM'
-	| 'WRB'
-	| 'WRM'
-	| 'SRM';
+export enum VehicleType {
+	Wagon,
+	Locomotive
+}
+export enum VehicleClass {
+	A = 'A',
+	ABT = 'ABT',
+	AD = 'AD',
+	AS = 'AS',
+	APM = 'APM',
+	B = 'B',
+	BT = 'BT',
+	BR = 'BR',
+	BPM = 'BPM',
+	WRB = 'WRB',
+	WRM = 'WRM',
+	SRM = 'SRM'
+}
 
 export type LocomotiveType = 'Re460';
 export type WagonType = 'EW4' | 'IC2000';
@@ -79,11 +83,14 @@ interface VehicleState {
 export interface WagonVehicleState extends VehicleState {
 	definition: WagonDefinition;
 	isBremsrechnerEnabled: boolean;
+	brakeType: keyof WagonBrakeWeights;
 }
 
 export interface LocomotiveVehicleState extends VehicleState {
 	definition: LocomotiveDefinition;
 	isSchlepped: boolean;
+	isQLok: boolean;
+	isEPICEnabled: boolean;
 }
 
 export interface TrainComposition {
@@ -98,18 +105,20 @@ export interface TrainComposition {
 }
 
 export function defaultVehicleState(vehicle: BaseVehicleDefinition): VehicleStates {
-	if (vehicle.type === 'locomotive') {
+	if (vehicle.type === VehicleType.Locomotive) {
 		const locoDef = vehicle as LocomotiveDefinition;
 
 		return {
 			definition: locoDef,
 			effectiveMaxSpeed: locoDef.maxSpeed,
 			effectiveBrakeWeight: locoDef.brakeWeights.r,
-			isSpeiseleitungCoupled: false,
-			isZugsammelleitungCoupled: false,
-			isSchlepped: false,
+			isSpeiseleitungCoupled: true,
+			isZugsammelleitungCoupled: true,
 			isBrakeEnabled: true,
 			isEpCoupled: true,
+			isEPICEnabled: true,
+			isQLok: false,
+			isSchlepped: false,
 			appliedRules: []
 		};
 	} else {
@@ -124,6 +133,7 @@ export function defaultVehicleState(vehicle: BaseVehicleDefinition): VehicleStat
 			isBrakeEnabled: true,
 			isBremsrechnerEnabled: true,
 			isEpCoupled: true,
+			brakeType: 'rMg',
 			appliedRules: []
 		};
 	}
@@ -141,7 +151,7 @@ export function defaultTrainComposition(vehicles: BaseVehicleDefinition[]): Trai
 		totalEffectiveBrakeWeight: totalBrakeWeight,
 		trainMaxSpeed: Math.min(
 			...vehicleStates
-				.filter((x) => x.definition.type === 'locomotive')
+				.filter((x) => x.definition.type === VehicleType.Locomotive)
 				.map((v) => v.effectiveMaxSpeed)
 		),
 		bremshundertstel: (totalBrakeWeight / totalWeight) * 100,

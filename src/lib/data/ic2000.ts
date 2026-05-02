@@ -1,12 +1,13 @@
-import type {
+import {
+	VehicleClass,
 	VehicleType,
-	WagonBrakeWeights,
-	WagonDefinition,
-	WagonType
+	type WagonBrakeWeights,
+	type WagonDefinition,
+	type WagonType
 } from '$lib/types/BremsrechnerTypes';
 
 const IC2000_BaseDefinition = {
-	type: 'BT' as VehicleType,
+	type: VehicleType.Wagon,
 	wagonType: 'IC2000' as WagonType,
 	maxSpeed: 200,
 	brakeWeights: {
@@ -26,28 +27,28 @@ const IC2000_BaseDefinition = {
 
 const IC2000_A: WagonDefinition = {
 	...IC2000_BaseDefinition,
-	class: 'A',
+	class: VehicleClass.A,
 	uicNumberStart: '508516-94000',
 	uicNumberEnd: '508516-94079'
 };
 
 const IC2000_AS: WagonDefinition = {
 	...IC2000_BaseDefinition,
-	class: 'AS',
+	class: VehicleClass.AS,
 	uicNumberStart: '508516-94154',
 	uicNumberEnd: '508516-94185'
 };
 
 const IC2000_B: WagonDefinition = {
 	...IC2000_BaseDefinition,
-	class: 'B',
+	class: VehicleClass.B,
 	uicNumberStart: '508526-94000',
 	uicNumberEnd: '508526-94148'
 };
 
 const IC2000_BT: WagonDefinition = {
 	...IC2000_BaseDefinition,
-	class: 'BT',
+	class: VehicleClass.BT,
 	uicNumberStart: '508526-94900',
 	uicNumberEnd: '508526-94939',
 	isSteuerwagen: true
@@ -55,21 +56,21 @@ const IC2000_BT: WagonDefinition = {
 
 const IC2000_AD: WagonDefinition = {
 	...IC2000_BaseDefinition,
-	class: 'AD',
+	class: VehicleClass.AD,
 	uicNumberStart: '508586-94000',
 	uicNumberEnd: '508586-94039'
 };
 
 const IC2000_BR: WagonDefinition = {
 	...IC2000_BaseDefinition,
-	class: 'BR',
+	class: VehicleClass.BR,
 	uicNumberStart: '508566-94016',
 	uicNumberEnd: '508566-94025'
 };
 
 const IC2000_WRB: WagonDefinition = {
 	...IC2000_BaseDefinition,
-	class: 'WRB',
+	class: VehicleClass.WRB,
 	uicNumberStart: '508588-94000',
 	uicNumberEnd: '508588-94015'
 };

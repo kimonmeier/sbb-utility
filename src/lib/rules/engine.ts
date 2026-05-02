@@ -1,6 +1,7 @@
 import type { TrainComposition } from '$lib/types/BremsrechnerTypes';
 import type { TrainRule, VehicleRule } from '$lib/types/RuleEngine';
 import { IsLokZugRule, MaxSpeedRule } from './generic';
+import { PendelzuegeVmax125, PendelzuegeVmax160 } from './loko/pendelzuege';
 
 export class RuleEngineError extends Error {
 	constructor(message: string) {
@@ -12,7 +13,12 @@ export class RuleEngineError extends Error {
 export class RuleEngine {
 	constructor(
 		private vehicleRules: VehicleRule[] = [],
-		private trainRules: TrainRule[] = [new MaxSpeedRule(), new IsLokZugRule()]
+		private trainRules: TrainRule[] = [
+			new MaxSpeedRule(),
+			new IsLokZugRule(),
+			new PendelzuegeVmax125(),
+			new PendelzuegeVmax160()
+		]
 	) {}
 
 	public processTrain(initialTrain: TrainComposition): TrainComposition {

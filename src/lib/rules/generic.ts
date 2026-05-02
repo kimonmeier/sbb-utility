@@ -1,4 +1,4 @@
-import type { AppliedRule, TrainComposition } from '$lib/types/BremsrechnerTypes';
+import { VehicleType, type AppliedRule, type TrainComposition } from '$lib/types/BremsrechnerTypes';
 import type { TrainRule } from '$lib/types/RuleEngine';
 import { RuleId } from './ruleId';
 
@@ -51,7 +51,7 @@ export class IsLokZugRule implements TrainRule {
 	}
 
 	public isApplicable(train: TrainComposition): boolean {
-		return train.vehicles.every((v) => v.definition.type === 'locomotive');
+		return train.vehicles.every((v) => v.definition.type === VehicleType.Locomotive);
 	}
 
 	public execute(train: TrainComposition): TrainComposition {
