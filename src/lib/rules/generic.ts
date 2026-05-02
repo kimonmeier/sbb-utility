@@ -1,8 +1,9 @@
 import type { AppliedRule } from '$lib/types/BremsrechnerTypes';
 import type { TrainRuleEngine } from '$lib/types/RuleEngine';
+import { RuleId } from './ruleId';
 
 const LokZugRule: AppliedRule = {
-	ruleId: 'rule_train_is_lokzug',
+	ruleId: RuleId.TrainIsLokzug,
 	description: 'Lok-Zug maximal R115, vmax 125 km/h',
 	type: 'rule'
 };
