@@ -23,7 +23,7 @@ const EW4_BRAKE_WEIGHTS: WagonBrakeWeights = {
 	ric: 51
 };
 
-const EW4_A_200: WagonDefinition = {
+export const EW4_A_200: WagonDefinition = {
 	...EW4_BaseDefinition,
 	brakeWeights: EW4_BRAKE_WEIGHTS,
 	class: 'A',
@@ -32,7 +32,7 @@ const EW4_A_200: WagonDefinition = {
 	uicNumberEnd: '508510-95219'
 };
 
-const EW4_A_160: WagonDefinition = {
+export const EW4_A_160: WagonDefinition = {
 	...EW4_BaseDefinition,
 	brakeWeights: EW4_BRAKE_WEIGHTS,
 	class: 'A',
@@ -42,7 +42,7 @@ const EW4_A_160: WagonDefinition = {
 	maxSpeed: 160
 };
 
-const EW4_B_160: WagonDefinition = {
+export const EW4_B_160: WagonDefinition = {
 	...EW4_BaseDefinition,
 	brakeWeights: EW4_BRAKE_WEIGHTS,
 	class: 'B',
@@ -52,7 +52,7 @@ const EW4_B_160: WagonDefinition = {
 	maxSpeed: 160
 };
 
-const EW4_B_200_1: WagonDefinition = {
+export const EW4_B_200_1: WagonDefinition = {
 	...EW4_BaseDefinition,
 	brakeWeights: EW4_BRAKE_WEIGHTS,
 	class: 'B',
@@ -62,7 +62,7 @@ const EW4_B_200_1: WagonDefinition = {
 	maxSpeed: 200
 };
 
-const EW4_B_200_2: WagonDefinition = {
+export const EW4_B_200_2: WagonDefinition = {
 	...EW4_BaseDefinition,
 	brakeWeights: EW4_BRAKE_WEIGHTS,
 	class: 'B',
@@ -72,7 +72,7 @@ const EW4_B_200_2: WagonDefinition = {
 	maxSpeed: 200
 };
 
-const EW4_B_200_FANZUEGE: WagonDefinition = {
+export const EW4_B_200_FANZUEGE: WagonDefinition = {
 	...EW4_BaseDefinition,
 	brakeWeights: EW4_BRAKE_WEIGHTS,
 	class: 'B',
@@ -82,7 +82,7 @@ const EW4_B_200_FANZUEGE: WagonDefinition = {
 	maxSpeed: 200
 };
 
-const EW4_BT_BASE: WagonDefinition = {
+export const EW4_BT_BASE: WagonDefinition = {
 	type: 'wagon' as VehicleType,
 	class: 'BT',
 	wagonType: 'EW4' as WagonType,
@@ -104,7 +104,7 @@ const EW4_BT_BASE: WagonDefinition = {
 	isSteuerwagen: true
 };
 
-const EW4_BT_MODERN: WagonDefinition = {
+export const EW4_BT_MODERN: WagonDefinition = {
 	type: 'wagon' as VehicleType,
 	class: 'BT',
 	wagonType: 'EW4' as WagonType,
