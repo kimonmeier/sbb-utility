@@ -1,5 +1,6 @@
 import type { TrainComposition } from '$lib/types/BremsrechnerTypes';
 import type { TrainRuleEngine, VehicleRuleEngine } from '$lib/types/RuleEngine';
+import { IsLokZugRule, MaxSpeedRule } from './generic';
 
 export class RuleEngineError extends Error {
 	constructor(message: string) {
@@ -10,7 +11,7 @@ export class RuleEngineError extends Error {
 
 export class RuleEngine {
 	private vehicleRules: VehicleRuleEngine[] = [];
-	private trainRules: TrainRuleEngine[] = [];
+	private trainRules: TrainRuleEngine[] = [MaxSpeedRule, IsLokZugRule];
 
 	public processTrain(train: TrainComposition): void {
 		train.vehicles.forEach((vehicle) => {
