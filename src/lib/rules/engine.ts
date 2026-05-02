@@ -10,19 +10,25 @@ export class RuleEngineError extends Error {
 }
 
 export class RuleEngine {
-	private vehicleRules: VehicleRuleEngine[] = [];
-	private trainRules: TrainRuleEngine[] = [MaxSpeedRule, IsLokZugRule];
+	constructor(
+		private vehicleRules: VehicleRuleEngine[] = [],
+		private trainRules: TrainRuleEngine[] = [MaxSpeedRule, IsLokZugRule]
+	) {}
 
-	public processTrain(train: TrainComposition): void {
-		train.vehicles.forEach((vehicle) => {
+	public processTrain(initialTrain: TrainComposition): TrainComposition {
+		let currentTrain = { ...initialTrain };
+
+		// Kopiere Vehicles, damit wir mutationsfrei bleiben
+		currentTrain.vehicles = currentTrain.vehicles.map((vehicle, index) => {
+			let currentVehicle = { ...vehicle };
+
 			this.vehicleRules.forEach((rule) => {
 				try {
-					const updatedVehicle = rule(
-						vehicle,
-						train.vehicles.indexOf(vehicle),
-						new Map(train.vehicles.map((v, i) => [i, v]))
+					currentVehicle = rule(
+						currentVehicle,
+						index,
+						new Map(currentTrain.vehicles.map((v, i) => [i, v]))
 					);
-					Object.assign(vehicle, updatedVehicle);
 				} catch (error) {
 					if (error instanceof RuleEngineError) {
 						console.error(`Vehicle rule error: ${error.message}`);
@@ -31,12 +37,13 @@ export class RuleEngine {
 					}
 				}
 			});
+
+			return currentVehicle;
 		});
 
 		this.trainRules.forEach((rule) => {
 			try {
-				const updatedTrain = rule(train);
-				Object.assign(train, updatedTrain);
+				currentTrain = rule(currentTrain);
 			} catch (error) {
 				if (error instanceof RuleEngineError) {
 					console.error(`Train rule error: ${error.message}`);
@@ -45,5 +52,7 @@ export class RuleEngine {
 				}
 			}
 		});
+
+		return currentTrain;
 	}
 }
