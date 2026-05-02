@@ -1,12 +1,19 @@
-import type { VehicleType, WagonBrakeWeights, WagonDefinition } from '$lib/types/BremsrechnerTypes';
+import type {
+	VehicleType,
+	WagonBrakeWeights,
+	WagonDefinition,
+	WagonType
+} from '$lib/types/BremsrechnerTypes';
 
 const EW4_BaseDefinition = {
 	type: 'WAGON' as VehicleType,
+	wagonType: 'EW4' as WagonType,
 	lengthOverBuffers: 26.4,
 	maxSpeed: 200,
 	totalWeight: 50,
 	selfWeight: 45,
-	handbrakeForce: 18
+	handbrakeForce: 18,
+	isSteuerwagen: false
 };
 
 const EW4_BRAKE_WEIGHTS: WagonBrakeWeights = {
@@ -78,6 +85,7 @@ const EW4_B_200_FANZUEGE: WagonDefinition = {
 const EW4_BT_BASE: WagonDefinition = {
 	type: 'wagon' as VehicleType,
 	class: 'BT',
+	wagonType: 'EW4' as WagonType,
 	brakeWeights: {
 		rMg: 102,
 		rEp: 81,
@@ -92,12 +100,14 @@ const EW4_BT_BASE: WagonDefinition = {
 	handbrakeForce: 24,
 	hasElectricBrakeController: true,
 	uicNumberStart: '508528-94960',
-	uicNumberEnd: '508528-94989'
+	uicNumberEnd: '508528-94989',
+	isSteuerwagen: true
 };
 
 const EW4_BT_MODERN: WagonDefinition = {
 	type: 'wagon' as VehicleType,
 	class: 'BT',
+	wagonType: 'EW4' as WagonType,
 	brakeWeights: {
 		rMg: 106,
 		rEp: 85,
@@ -112,7 +122,8 @@ const EW4_BT_MODERN: WagonDefinition = {
 	handbrakeForce: 24,
 	hasElectricBrakeController: true,
 	uicNumberStart: '508528-94900',
-	uicNumberEnd: '508528-94959'
+	uicNumberEnd: '508528-94959',
+	isSteuerwagen: true
 };
 
 export const EW4_WAGONS: WagonDefinition[] = [

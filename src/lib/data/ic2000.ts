@@ -1,7 +1,13 @@
-import type { VehicleType, WagonBrakeWeights, WagonDefinition } from '$lib/types/BremsrechnerTypes';
+import type {
+	VehicleType,
+	WagonBrakeWeights,
+	WagonDefinition,
+	WagonType
+} from '$lib/types/BremsrechnerTypes';
 
 const IC2000_BaseDefinition = {
 	type: 'BT' as VehicleType,
+	wagonType: 'IC2000' as WagonType,
 	maxSpeed: 200,
 	brakeWeights: {
 		rMg: 111,
@@ -14,7 +20,8 @@ const IC2000_BaseDefinition = {
 	selfWeight: 47,
 	totalWeight: 60,
 	handbrakeForce: 0,
-	hasElectricBrakeController: true
+	hasElectricBrakeController: true,
+	isSteuerwagen: false
 };
 
 const IC2000_A: WagonDefinition = {
@@ -42,7 +49,8 @@ const IC2000_BT: WagonDefinition = {
 	...IC2000_BaseDefinition,
 	class: 'BT',
 	uicNumberStart: '508526-94900',
-	uicNumberEnd: '508526-94939'
+	uicNumberEnd: '508526-94939',
+	isSteuerwagen: true
 };
 
 const IC2000_AD: WagonDefinition = {

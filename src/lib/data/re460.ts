@@ -2,6 +2,7 @@ import type { LocomotiveDefinition } from '$lib/types/BremsrechnerTypes';
 
 export const Re460: LocomotiveDefinition = {
 	type: 'locomotive',
+	locomotiveType: 'Re460',
 	uicNumberStart: '91854460000',
 	uicNumberEnd: '91854460118',
 	maxSpeed: 200,
