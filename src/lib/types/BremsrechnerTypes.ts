@@ -139,7 +139,11 @@ export function defaultTrainComposition(vehicles: BaseVehicleDefinition[]): Trai
 		totalLength: vehicleStates.reduce((sum, v) => sum + v.definition.lengthOverBuffers, 0),
 		totalWeight: totalWeight,
 		totalEffectiveBrakeWeight: totalBrakeWeight,
-		trainMaxSpeed: Math.min(...vehicleStates.map((v) => v.effectiveMaxSpeed)),
+		trainMaxSpeed: Math.min(
+			...vehicleStates
+				.filter((x) => x.definition.type === 'locomotive')
+				.map((v) => v.effectiveMaxSpeed)
+		),
 		bremshundertstel: (totalBrakeWeight / totalWeight) * 100,
 		trainCategory: 'R',
 		appliedRules: []
