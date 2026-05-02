@@ -66,7 +66,6 @@ export type AppliedRule = {
 };
 
 interface VehicleState {
-	stateType: VehicleType;
 	definition: BaseVehicleDefinition;
 	effectiveMaxSpeed: number;
 	effectiveBrakeWeight: number;
@@ -78,13 +77,11 @@ interface VehicleState {
 }
 
 export interface WagonVehicleState extends VehicleState {
-	stateType: 'wagon';
 	definition: WagonDefinition;
 	isBremsrechnerEnabled: boolean;
 }
 
 export interface LocomotiveVehicleState extends VehicleState {
-	stateType: 'locomotive';
 	definition: LocomotiveDefinition;
 	isSchlepped: boolean;
 }
@@ -105,7 +102,6 @@ export function defaultVehicleState(vehicle: BaseVehicleDefinition): VehicleStat
 		const locoDef = vehicle as LocomotiveDefinition;
 
 		return {
-			stateType: 'locomotive',
 			definition: locoDef,
 			effectiveMaxSpeed: locoDef.maxSpeed,
 			effectiveBrakeWeight: locoDef.brakeWeights.r,
@@ -120,7 +116,6 @@ export function defaultVehicleState(vehicle: BaseVehicleDefinition): VehicleStat
 		const wagonDef = vehicle as WagonDefinition;
 
 		return {
-			stateType: 'wagon',
 			definition: wagonDef,
 			effectiveMaxSpeed: wagonDef.maxSpeed,
 			effectiveBrakeWeight: wagonDef.brakeWeights.rMg,
