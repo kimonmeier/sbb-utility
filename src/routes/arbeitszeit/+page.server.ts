@@ -169,7 +169,8 @@ function isRuhetagType(type?: string | null): boolean {
 	return (
 		type === SopreTourType.RUHETAGE ||
 		type === SopreTourType.RUHETAG_VERLANGT ||
-		type === SopreTourType.RUHETAG_TAUSCH
+		type === SopreTourType.RUHETAG_TAUSCH ||
+		type === SopreTourType.GUTHABEN_RUHETAG_PERSONAL
 	);
 }
 
@@ -177,7 +178,8 @@ function isKompensationstagType(type?: string | null): boolean {
 	return (
 		type === SopreTourType.KOMPENSATIONSTAG ||
 		type === SopreTourType.KOMPENSATIONSTAG_VERLANGT ||
-		type === SopreTourType.KOMPENSATIONSTAG_TAUSCH
+		type === SopreTourType.KOMPENSATIONSTAG_TAUSCH ||
+		type === SopreTourType.GUTHABEN_KOMPENSATIONSTAG_PERSONAL
 	);
 }
 
