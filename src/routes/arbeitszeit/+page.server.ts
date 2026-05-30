@@ -1,8 +1,8 @@
-import { redirect } from '@sveltejs/kit';
+import { fail, redirect } from '@sveltejs/kit';
 import { and, asc, eq, gt, gte, inArray, lt } from 'drizzle-orm';
-import type { PageServerLoad } from './$types';
+import type { Actions, PageServerLoad } from './$types';
 import { db } from '$lib/server/db';
-import { touren, zeitkontenSnapshots } from '$lib/server/db/schema';
+import { arbeitszeitManualKuerzungen, touren, zeitkontenSnapshots } from '$lib/server/db/schema';
 import { SopreTourType } from '$lib/types/SopreTypes';
 
 const TRACKED_ACCOUNT_IDS = ['5', '9040', '9046', '9047'] as const;
@@ -21,7 +21,8 @@ type ProjectionRule =
 	| 'Schaetzung Zyklusregel -> 9047 (-1 Ruhetag)'
 	| 'Reserve -> 5 (fix 8.2h)'
 	| 'Arbeitszeit -> 5 (bezahlteZeit - 8.2h)'
-	| 'Krankheit (automatische Kürzung)';
+	| 'Krankheit (automatische Kürzung)'
+	| 'Manuelle Kürzung';
 
 interface HistoryPoint {
 	snapshotDate: string;
@@ -43,6 +44,32 @@ interface RestDayEstimate {
 	date: string;
 	type: 'RT' | 'CT';
 	reason: string;
+}
+
+function isAccountId(value: string): value is AccountId {
+	return (TRACKED_ACCOUNT_IDS as readonly string[]).includes(value);
+}
+
+function parseManualKuerzungInput(input: string): number | null {
+	const normalized = input.replace(',', '.').trim();
+	if (!normalized) {
+		return 0;
+	}
+
+	const parsed = Number.parseFloat(normalized);
+	if (!Number.isFinite(parsed)) {
+		return null;
+	}
+
+	return Math.round(parsed * 100) / 100;
+}
+
+function isMissingTableError(error: unknown): boolean {
+	if (!(error instanceof Error)) {
+		return false;
+	}
+
+	return error.message.toLowerCase().includes('no such table');
 }
 
 function requireUserOrRedirect(user: App.Locals['user']) {
@@ -280,6 +307,29 @@ export const load: PageServerLoad = async ({ locals }) => {
 		? Date.parse(latestSnapshotDate) + 24 * 60 * 60 * 1000
 		: Date.now();
 
+	const manualKuerzungByAccount = new Map<AccountId, number>();
+	for (const accountId of TRACKED_ACCOUNT_IDS) {
+		manualKuerzungByAccount.set(accountId, 0);
+	}
+
+	try {
+		const manualRows = await db.query.arbeitszeitManualKuerzungen.findMany({
+			where: eq(arbeitszeitManualKuerzungen.user, user.id)
+		});
+
+		for (const row of manualRows) {
+			if (!isAccountId(row.accountId)) {
+				continue;
+			}
+
+			manualKuerzungByAccount.set(row.accountId, row.kuerzungHundredths / 100);
+		}
+	} catch (error) {
+		if (!isMissingTableError(error)) {
+			throw error;
+		}
+	}
+
 	const futureTours = await db.query.touren.findMany({
 		where: and(eq(touren.user, user.id), gt(touren.datum, projectionStartTimestamp)),
 		orderBy: [asc(touren.datum)]
@@ -408,6 +458,21 @@ export const load: PageServerLoad = async ({ locals }) => {
 		});
 	}
 
+	for (const accountId of TRACKED_ACCOUNT_IDS) {
+		const kuerzung = manualKuerzungByAccount.get(accountId) ?? 0;
+		if (kuerzung === 0) {
+			continue;
+		}
+
+		pushProjectionEvent(projectionEvents, projected, {
+			date: `${currentYear}-12-31`,
+			tourLabel: 'Manuelle Kürzung',
+			accountId,
+			rule: 'Manuelle Kürzung',
+			delta: -kuerzung
+		});
+	}
+
 	const yearStartDayNumber = toUtcDayNumberFromDateKey(yearStartDateKey);
 	const yearEndDayNumber = toUtcDayNumberFromDateKey(yearEndDateKey);
 
@@ -478,8 +543,20 @@ export const load: PageServerLoad = async ({ locals }) => {
 		}
 	}
 
-	const totalRtCount = knownRtCount + estimatedRtCount + ferienRtCount;
-	const totalCtCount = knownCtCount + estimatedCtCount + ferienCtCount;
+	const totalRtCount =
+		knownRtCount +
+		estimatedRtCount +
+		ferienRtCount +
+		krankheitsbedingteKürzung +
+		(manualKuerzungByAccount.get('9047') ?? 0);
+
+	const totalCtCount =
+		knownCtCount +
+		estimatedCtCount +
+		ferienCtCount +
+		krankheitsbedingteKürzung +
+		(manualKuerzungByAccount.get('9046') ?? 0);
+
 	const missingRtWithoutEstimate = expectedRtCount - (knownRtCount + ferienRtCount);
 	const missingCtWithoutEstimate = expectedCtCount - (knownCtCount + ferienCtCount);
 	const missingRtWithEstimate = expectedRtCount - totalRtCount;
@@ -523,6 +600,10 @@ export const load: PageServerLoad = async ({ locals }) => {
 	return {
 		history,
 		latestSnapshotDate,
+		manualKuerzungen: TRACKED_ACCOUNT_IDS.map((accountId) => ({
+			accountId,
+			value: manualKuerzungByAccount.get(accountId) ?? 0
+		})),
 		projectionEvents,
 		ignoredFutureTours,
 		restDayCalculator,
@@ -533,4 +614,58 @@ export const load: PageServerLoad = async ({ locals }) => {
 			projected: projected.get(accountId) ?? 0
 		}))
 	};
+};
+
+export const actions: Actions = {
+	setManualKuerzung: async ({ request, locals }) => {
+		const user = requireUserOrRedirect(locals.user);
+		const formData = await request.formData();
+
+		const accountIdRaw = String(formData.get('accountId') ?? '').trim();
+		if (!isAccountId(accountIdRaw)) {
+			return fail(400, { error: 'Ungueltiges Konto.' });
+		}
+
+		const kuerzungInput = String(formData.get('kuerzung') ?? '');
+		const parsedKuerzung = parseManualKuerzungInput(kuerzungInput);
+		if (parsedKuerzung == null) {
+			return fail(400, {
+				error: 'Bitte eine gueltige Zahl eingeben.',
+				accountId: accountIdRaw
+			});
+		}
+
+		const kuerzungHundredths = Math.round(parsedKuerzung * 100);
+
+		try {
+			await db
+				.insert(arbeitszeitManualKuerzungen)
+				.values({
+					user: user.id,
+					accountId: accountIdRaw,
+					kuerzungHundredths,
+					updatedAt: new Date()
+				})
+				.onConflictDoUpdate({
+					target: [arbeitszeitManualKuerzungen.user, arbeitszeitManualKuerzungen.accountId],
+					set: {
+						kuerzungHundredths,
+						updatedAt: new Date()
+					}
+				});
+		} catch (error) {
+			if (isMissingTableError(error)) {
+				return fail(500, {
+					error: 'DB-Schema fehlt. Bitte zuerst `npm run db:push` ausfuehren.'
+				});
+			}
+
+			throw error;
+		}
+
+		return {
+			success: true,
+			accountId: accountIdRaw
+		};
+	}
 };

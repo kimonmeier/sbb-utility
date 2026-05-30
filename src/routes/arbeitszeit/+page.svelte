@@ -1,8 +1,8 @@
 <script lang="ts">
-	import type { PageData } from './$types';
+	import type { ActionData, PageData } from './$types';
 	import { m } from '$lib/paraglide/messages.js';
 
-	let { data }: { data: PageData } = $props();
+	let { data, form }: { data: PageData; form?: ActionData } = $props();
 
 	const formatNumber = (value: number) =>
 		new Intl.NumberFormat('de-CH', {
@@ -14,6 +14,8 @@
 		const prefix = value > 0 ? '+' : '';
 		return `${prefix}${formatNumber(value)}`;
 	};
+
+	const formatInputNumber = (value: number) => value.toFixed(2).replace(/\.00$/, '');
 
 	const formatCoverageText = (balance: number, singular: string, plural: string) => {
 		if (balance > 0) {
@@ -223,6 +225,16 @@
 
 		return Object.values(grouped).sort((a, b) => a.accountId.localeCompare(b.accountId));
 	});
+
+	const manualKuerzungByAccount = $derived.by(() => {
+		const map: Record<string, number> = {};
+
+		for (const entry of data.manualKuerzungen) {
+			map[entry.accountId] = entry.value;
+		}
+
+		return map;
+	});
 </script>
 
 <svelte:head>
@@ -241,6 +253,56 @@
 				{m.arbeitszeit_last_snapshot({ date: data.latestSnapshotDate })}
 			</p>
 		{/if}
+	</section>
+
+	<section class="rounded-box border border-base-300 bg-base-100 p-5">
+		<h2 class="text-lg font-semibold">Manuelle Kürzungen je Konto</h2>
+		<p class="mt-2 text-sm text-base-content/70">
+			Positive Werte reduzieren das Konto, negative Werte erhoehen es. Die Werte werden gespeichert.
+		</p>
+
+		{#if form?.error}
+			<div class="mt-3 alert text-sm alert-error">{form.error}</div>
+		{/if}
+		{#if form?.success}
+			<div class="mt-3 alert text-sm alert-success">
+				Manuelle Kürzung gespeichert ({form.accountId}).
+			</div>
+		{/if}
+
+		<div class="mt-4 grid gap-3 md:grid-cols-2">
+			{#each accountFilterOptions as accountId (accountId)}
+				<form
+					method="POST"
+					action="?/setManualKuerzung"
+					class="rounded-box border border-base-300 bg-base-200/60 p-4"
+				>
+					<input type="hidden" name="accountId" value={accountId} />
+					<div class="mb-2 flex items-center justify-between gap-2">
+						<h3 class="font-semibold">Konto {accountId}</h3>
+						<span class="text-sm text-base-content/70">
+							{data.projectedBalances.find((balance) => balance.accountId === accountId)
+								?.description ?? `Zeitkonto ${accountId}`}
+						</span>
+					</div>
+
+					<label class="label" for={`kuerzung-${accountId}`}>
+						<span class="label-text">Kürzung</span>
+					</label>
+					<div class="flex gap-2">
+						<input
+							id={`kuerzung-${accountId}`}
+							name="kuerzung"
+							type="text"
+							inputmode="decimal"
+							class="input-bordered input w-full"
+							value={formatInputNumber(manualKuerzungByAccount[accountId] ?? 0)}
+						/>
+						<button type="submit" class="btn btn-primary">Speichern</button>
+					</div>
+				</form>
+			{/each}
+		</div>
 	</section>
 
 	<section class="rounded-box border border-base-300 bg-base-100 p-5">

@@ -71,4 +71,22 @@ export const zeitkontenSnapshots = sqliteTable(
 	(table) => [unique().on(table.user, table.snapshotDate, table.sapLeaveTypeId)]
 );
 
+export const arbeitszeitManualKuerzungen = sqliteTable(
+	'arbeitszeit_manual_kuerzungen',
+	{
+		id: text('id')
+			.primaryKey()
+			.$defaultFn(() => crypto.randomUUID()),
+		user: text('user_id')
+			.notNull()
+			.references(() => user.id, { onDelete: 'cascade' }),
+		accountId: text('account_id').notNull(),
+		kuerzungHundredths: integer('kuerzung_hundredths').notNull().default(0),
+		updatedAt: integer('updated_at', { mode: 'timestamp_ms' })
+			.notNull()
+			.$defaultFn(() => new Date())
+	},
+	(table) => [unique().on(table.user, table.accountId)]
+);
+
 export * from './auth.schema';
