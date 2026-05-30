@@ -20,7 +20,8 @@ type ProjectionRule =
 	| 'Schaetzung Zyklusregel -> 9046 (-1 Ausgleichstag)'
 	| 'Schaetzung Zyklusregel -> 9047 (-1 Ruhetag)'
 	| 'Reserve -> 5 (fix 8.2h)'
-	| 'Arbeitszeit -> 5 (bezahlteZeit - 8.2h)';
+	| 'Arbeitszeit -> 5 (bezahlteZeit - 8.2h)'
+	| 'Krankheit (automatische Kürzung)';
 
 interface HistoryPoint {
 	snapshotDate: string;
@@ -191,6 +192,13 @@ function isReserveType(type?: string | null): boolean {
 	);
 }
 
+function calculateKürzungByKrankheit(allTouren: TourRow[]): number {
+	const krankheitTours = allTouren.filter((tour) => tour.abkuerzung === SopreTourType.KRANK);
+
+	const anzahlTageKürzung = Math.floor(krankheitTours.length / 5);
+	return anzahlTageKürzung;
+}
+
 function collectFerienChargeTargets(
 	futureTours: Array<TourRow>
 ): Map<number, '9040' | '9046' | '9047'> {
@@ -292,6 +300,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 		orderBy: [asc(touren.datum)]
 	});
 	const ferienChargeTargets = collectFerienChargeTargets(futureTours);
+	const krankheitsbedingteKürzung = calculateKürzungByKrankheit(toursInCurrentYear);
 
 	const projected = initializeProjectedBalances(latestBalances);
 
@@ -378,6 +387,24 @@ export const load: PageServerLoad = async ({ locals }) => {
 			accountId: '5',
 			rule: 'Arbeitszeit -> 5 (bezahlteZeit - 8.2h)',
 			delta
+		});
+	}
+
+	for (let index = 0; index < krankheitsbedingteKürzung; index++) {
+		pushProjectionEvent(projectionEvents, projected, {
+			date: `${currentYear}-12-31`,
+			tourLabel: 'Krankheit (automatische Kürzung)',
+			accountId: '9046',
+			rule: 'Krankheit (automatische Kürzung)',
+			delta: -1
+		});
+
+		pushProjectionEvent(projectionEvents, projected, {
+			date: `${currentYear}-12-31`,
+			tourLabel: 'Krankheit (automatische Kürzung)',
+			accountId: '9047',
+			rule: 'Krankheit (automatische Kürzung)',
+			delta: -1
 		});
 	}
 
