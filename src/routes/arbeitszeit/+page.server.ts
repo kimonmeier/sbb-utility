@@ -303,9 +303,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 	const latestBalances = buildLatestBalances(history);
 
 	const latestSnapshotDate = history.at(-1)?.snapshotDate;
-	const projectionStartTimestamp = latestSnapshotDate
-		? Date.parse(latestSnapshotDate) + 24 * 60 * 60 * 1000
-		: Date.now();
+	const projectionStartTimestamp = latestSnapshotDate ? Date.parse(latestSnapshotDate) : Date.now();
 
 	const manualKuerzungByAccount = new Map<AccountId, number>();
 	for (const accountId of TRACKED_ACCOUNT_IDS) {
