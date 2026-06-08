@@ -329,7 +329,7 @@ export const load: PageServerLoad = async ({ locals }) => {
 	}
 
 	const futureTours = await db.query.touren.findMany({
-		where: and(eq(touren.user, user.id), gt(touren.datum, projectionStartTimestamp)),
+		where: and(eq(touren.user, user.id), gte(touren.datum, projectionStartTimestamp)),
 		orderBy: [asc(touren.datum)]
 	});
 
