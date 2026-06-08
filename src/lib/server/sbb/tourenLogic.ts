@@ -265,18 +265,18 @@ async function updateTourForDay(userId: string, row: SBBUtilityTouren) {
 
 function buildTourUpdatePayload(row: SBBUtilityTouren) {
 	return {
-		abkuerzung: row.abkuerzung,
-		tourNumber: row.tourNumber,
-		depot: row.depot,
-		lastEdited: row.lastEdited,
-		startTime: row.startTime,
-		endTime: row.endTime,
-		aenderungKommentar: row.aenderungKommentar,
-		tourSuffix: row.tourSuffix,
-		schichtdauer: row.schichtdauer,
-		arbeitszeit: row.arbeitszeit,
-		bezahlteZeit: row.bezahlteZeit,
-		bezahltePause: row.bezahltePause
+		abkuerzung: row.abkuerzung ?? null,
+		tourNumber: row.tourNumber ?? null,
+		depot: row.depot ?? null,
+		lastEdited: row.lastEdited ?? null,
+		startTime: row.startTime ?? null,
+		endTime: row.endTime ?? null,
+		aenderungKommentar: row.aenderungKommentar ?? null,
+		tourSuffix: row.tourSuffix ?? null,
+		schichtdauer: row.schichtdauer ?? null,
+		arbeitszeit: row.arbeitszeit ?? null,
+		bezahlteZeit: row.bezahlteZeit ?? null,
+		bezahltePause: row.bezahltePause ?? null
 	};
 }
 
