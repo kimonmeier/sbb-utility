@@ -53,6 +53,7 @@ const TOUR_TYPE_BY_CODE: Record<string, SopreTourType> = {
 	RTP: SopreTourType.GUTHABEN_RUHETAG_PERSONAL,
 	CTP: SopreTourType.GUTHABEN_KOMPENSATIONSTAG_PERSONAL,
 	UUZ: SopreTourType.WOHNUNGSWECHSEL,
+	NBU: SopreTourType.NBU,
 	F: SopreTourType.FERIEN
 };
 
