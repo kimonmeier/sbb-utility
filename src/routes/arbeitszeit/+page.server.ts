@@ -1,5 +1,5 @@
 import { fail, redirect } from '@sveltejs/kit';
-import { and, asc, eq, gt, gte, inArray, lt } from 'drizzle-orm';
+import { and, asc, eq, gte, inArray, lt } from 'drizzle-orm';
 import type { Actions, PageServerLoad } from './$types';
 import { db } from '$lib/server/db';
 import { arbeitszeitManualKuerzungen, touren, zeitkontenSnapshots } from '$lib/server/db/schema';
@@ -220,9 +220,11 @@ function isReserveType(type?: string | null): boolean {
 }
 
 function calculateKürzungByKrankheit(allTouren: TourRow[]): number {
-	const krankheitTours = allTouren.filter((tour) => tour.abkuerzung === SopreTourType.KRANK);
+	const krankheitTours = allTouren.filter(
+		(tour) => tour.abkuerzung === SopreTourType.KRANK || tour.abkuerzung === SopreTourType.NBU
+	);
 
-	const anzahlTageKürzung = Math.floor(krankheitTours.length / 5);
+	const anzahlTageKürzung = Math.floor(krankheitTours.length / 7) * 2;
 	return anzahlTageKürzung;
 }
 
